@@ -1,45 +1,84 @@
-import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
-
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
+import { Tabs, Stack } from 'expo-router';
+import { Home, Briefcase, MessageSquare, Settings, User } from 'lucide-react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+// Colores para las pestañas
+const COLORS = {
+    light: {
+        tint: '#2563eb',
+        tabIconDefault: '#6b7280'
+    },
+    dark: {
+        tint: '#3b82f6',
+        tabIconDefault: '#a1a1aa'
+    }
+};
 
-  return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
-    </Tabs>
-  );
+export default function Layout() {
+    const colorScheme = useColorScheme();
+    const colors = colorScheme === 'dark' ? COLORS.dark : COLORS.light;
+
+    return (
+        <Tabs
+            screenOptions={{
+                tabBarActiveTintColor: colors.tint,
+                tabBarInactiveTintColor: colors.tabIconDefault,
+                headerShown: false,
+            }}>
+            <Tabs.Screen
+                name="index"
+                options={{
+                    title: 'Dashboard General',
+                    tabBarIcon: ({ color }) => <Home size={24} color={color} />,
+                    href: '/',
+                }}
+            />
+            <Tabs.Screen
+                name="services"
+                options={{
+                    title: 'Servicios',
+                    tabBarIcon: ({ color }) => <Briefcase size={24} color={color} />,
+                    href: '/services',
+                }}
+            />
+            <Tabs.Screen
+                name="messages"
+                options={{
+                    title: 'Mensajes',
+                    tabBarIcon: ({ color }) => <MessageSquare size={24} color={color} />,
+                    href: '/messages',
+                }}
+            />
+            <Tabs.Screen
+                name="settings"
+                options={{
+                    title: 'Ajustes',
+                    tabBarIcon: ({ color }) => <Settings size={24} color={color} />,
+                    href: '/settings',
+                }}
+            />
+            <Tabs.Screen
+                name="profile"
+                options={{
+                    title: 'Perfil',
+                    tabBarIcon: ({ color }) => <User size={24} color={color} />,
+                    href: '/profile',
+                }}
+            />
+            <Tabs.Screen
+                name="posts"
+                options={{
+                    title: 'Publicaciones',
+                    tabBarIcon: ({ color }) => <User size={24} color={color} />,
+                    href: '/posts',
+                }}
+            />
+
+            {/* Ocultar las rutas no deseadas */}
+            <Tabs.Screen name="login" options={{ href: null }} />
+            <Tabs.Screen name="register" options={{ href: null }} />
+            <Tabs.Screen name="not-found" options={{ href: null }} />
+        </Tabs>
+    );
 }
