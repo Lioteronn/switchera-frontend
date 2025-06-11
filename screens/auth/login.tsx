@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Lock, Mail } from 'lucide-react-native';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -14,8 +15,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { UserRepository } from '@/api/userRepository';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { UserService } from '@/api/userService';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -26,13 +27,6 @@ const Login = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email) return "El correo es obligatorio";
-    if (!emailRegex.test(email)) return "Formato de correo inválido";
-    return "";
-  };
-
   const validatePassword = (password: string) => {
     if (!password) return "La contraseña es obligatoria";
     if (password.length < 6) return "La contraseña debe tener al menos 6 caracteres";
@@ -41,26 +35,28 @@ const Login = () => {
 
   const handleLogin = async () => {
     // Validar formulario
-    const emailValidationError = validateEmail(email);
     const passwordValidationError = validatePassword(password);
-    
-    setEmailError(emailValidationError);
+
     setPasswordError(passwordValidationError);
-    
-    if (emailValidationError || passwordValidationError) {
+
+    if (passwordValidationError) {
       return;
     }
-    
+
     setIsLoading(true);
-    
+
     try {
-      const response = await UserRepository.login(email, password);
+      const response = await UserService.login(email, password);
       if (response.status === 200) {
-        // Guardar tokens en AsyncStorage
-        await AsyncStorage.setItem('access_token', response.data.access);
-        await AsyncStorage.setItem('refresh_token', response.data.refresh);
-        
         // Redirigir al usuario a la pantalla principal
+        Alert.alert('Éxito', 'Has iniciado sesión correctamente', [
+          {
+            text: 'Aceptar',
+            onPress: () => {
+              router.push('/(tabs)/home');
+            }
+          }
+        ]);
         router.push('/(tabs)/home');
       } else {
         // Manejar errores de autenticación
@@ -75,25 +71,25 @@ const Login = () => {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]} 
+    <KeyboardAvoidingView
+      style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Fondo con burbujas animadas */}
 
       {/* Botón para volver atrás */}
-      <TouchableOpacity 
-        style={[styles.backButton, { top: insets.top + 10 }]} 
+      <TouchableOpacity
+        style={[styles.backButton, { top: insets.top + 10 }]}
         onPress={() => router.back()}
       >
         <ArrowLeft size={24} color="#333" />
       </TouchableOpacity>
-      
+
       {/* Contenedor del formulario */}
       <View style={styles.formContainer}>
         <Text style={styles.title}>Iniciar Sesión</Text>
         <Text style={styles.subtitle}>Bienvenido a Switchera</Text>
-        
+
         {/* Campo de email */}
         <View style={styles.inputContainer}>
           <Mail size={20} color="#64748b" style={styles.inputIcon} />
@@ -111,7 +107,7 @@ const Login = () => {
           />
         </View>
         {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
-        
+
         {/* Campo de contraseña */}
         <View style={styles.inputContainer}>
           <Lock size={20} color="#64748b" style={styles.inputIcon} />
@@ -128,15 +124,15 @@ const Login = () => {
           />
         </View>
         {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
-        
+
         {/* Link "Olvidé mi contraseña" */}
         <TouchableOpacity style={styles.forgotPasswordContainer}>
           <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
         </TouchableOpacity>
-        
+
         {/* Botón de inicio de sesión */}
-        <TouchableOpacity 
-          style={[styles.loginButton, isLoading && styles.disabledButton]} 
+        <TouchableOpacity
+          style={[styles.loginButton, isLoading && styles.disabledButton]}
           onPress={handleLogin}
           disabled={isLoading}
         >
@@ -146,7 +142,7 @@ const Login = () => {
             <Text style={styles.loginButtonText}>Iniciar sesión</Text>
           )}
         </TouchableOpacity>
-        
+
         {/* Enlace para registrarse */}
         <View style={styles.registerContainer}>
           <Text style={styles.registerText}>¿No tienes una cuenta? </Text>
