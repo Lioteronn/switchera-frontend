@@ -117,4 +117,24 @@ export const UserService = {
             return false;
         }
     }
+    
 };
+
+
+    /*
+    getUserData: async (): Promise<any> => {
+        try {
+        const loggedIn = await UserService.isLoggedIn();
+        if (loggedIn) {
+            const user = await UserRepository.getProfile();
+            return user?.data || null;
+        } else {
+            console.log("User is not Logged in");
+            return null;
+        }
+        } catch (error) {
+        console.error("Error getting user data:", error);
+        throw error;
+        }
+    },
+    */

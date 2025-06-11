@@ -2,36 +2,54 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, Lock, Mail, User } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { UserService } from '@/api/userService';
 
 const Register = () => {
-  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [nameError, setNameError] = useState('');
+  const [usernameError, setUsernameError] = useState('');
+  const [firstNameError, setFirstNameError] = useState('');
+  const [lastNameError, setLastNameError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const validateName = (name: string) => {
-    if (!name) return "El nombre es obligatorio";
-    if (name.length < 2) return "El nombre debe tener al menos 2 caracteres";
+  const validateUsername = (username: string) => {
+    if (!username) return "El nombre de usuario es obligatorio";
+    if (username.length < 3) return "El nombre de usuario debe tener al menos 3 caracteres";
+    return "";
+  };
+
+  const validateFirstName = (firstName: string) => {
+    if (!firstName) return "El nombre es obligatorio";
+    if (firstName.length < 2) return "El nombre debe tener al menos 2 caracteres";
+    return "";
+  };
+
+  const validateLastName = (lastName: string) => {
+    if (!lastName) return "El apellido es obligatorio";
+    if (lastName.length < 2) return "El apellido debe tener al menos 2 caracteres";
     return "";
   };
 
@@ -56,18 +74,24 @@ const Register = () => {
 
   const handleRegister = async () => {
     // Validar formulario
-    const nameValidationError = validateName(name);
+    const usernameValidationError = validateUsername(username);
+    const firstNameValidationError = validateFirstName(firstName);
+    const lastNameValidationError = validateLastName(lastName);
     const emailValidationError = validateEmail(email);
     const passwordValidationError = validatePassword(password);
     const confirmPasswordValidationError = validateConfirmPassword(confirmPassword);
     
-    setNameError(nameValidationError);
+    setUsernameError(usernameValidationError);
+    setFirstNameError(firstNameValidationError);
+    setLastNameError(lastNameValidationError);
     setEmailError(emailValidationError);
     setPasswordError(passwordValidationError);
     setConfirmPasswordError(confirmPasswordValidationError);
     
     if (
-      nameValidationError || 
+      usernameValidationError || 
+      firstNameValidationError || 
+      lastNameValidationError || 
       emailValidationError || 
       passwordValidationError || 
       confirmPasswordValidationError
@@ -78,18 +102,24 @@ const Register = () => {
     setIsLoading(true);
     
     try {
-      // Simula una operación asíncrona de registro
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const response = await UserService.register(username, firstName, lastName, email, password);
       
-      // Aquí integrarías la lógica real de registro
-      console.log('Name:', name);
-      console.log('Email:', email);
-      console.log('Password:', password);
-      
-      // Redirigir al usuario a la pantalla de login tras registro exitoso
-      router.push('/(auth)/login');
+      if (response.status === 201 || response.status === 200) {
+        Alert.alert('Éxito', 'Tu cuenta ha sido creada correctamente', [
+          {
+            text: 'Aceptar',
+            onPress: () => {
+              router.push('/(auth)/login');
+            }
+          }
+        ]);
+      } else {
+        
+        Alert.alert('Error', 'Error al crear la cuenta. Inténtalo de nuevo.');
+      }
     } catch (error) {
       console.error('Error de registro:', error);
+      Alert.alert('Error', 'Error al crear la cuenta. Inténtalo de nuevo más tarde.');
     } finally {
       setIsLoading(false);
     }
@@ -100,9 +130,6 @@ const Register = () => {
       style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]} 
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* Fondo con burbujas animadas */}
-
-      
       {/* Botón para volver atrás */}
       <TouchableOpacity 
         style={[styles.backButton, { top: insets.top + 10 }]} 
@@ -120,21 +147,54 @@ const Register = () => {
           <Text style={styles.title}>Crear cuenta</Text>
           <Text style={styles.subtitle}>Únete a la comunidad de Switchera</Text>
           
+          {/* Campo de nombre de usuario */}
+          <View style={styles.inputContainer}>
+            <User size={20} color="#64748b" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Nombre de usuario"
+              value={username}
+              onChangeText={(text) => {
+                setUsername(text);
+                setUsernameError('');
+              }}
+              placeholderTextColor="#94a3b8"
+              autoCapitalize="none"
+            />
+          </View>
+          {usernameError ? <Text style={styles.errorText}>{usernameError}</Text> : null}
+          
           {/* Campo de nombre */}
           <View style={styles.inputContainer}>
             <User size={20} color="#64748b" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Nombre completo"
-              value={name}
+              placeholder="Nombre"
+              value={firstName}
               onChangeText={(text) => {
-                setName(text);
-                setNameError('');
+                setFirstName(text);
+                setFirstNameError('');
               }}
               placeholderTextColor="#94a3b8"
             />
           </View>
-          {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
+          {firstNameError ? <Text style={styles.errorText}>{firstNameError}</Text> : null}
+          
+          {/* Campo de apellido */}
+          <View style={styles.inputContainer}>
+            <User size={20} color="#64748b" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Apellido"
+              value={lastName}
+              onChangeText={(text) => {
+                setLastName(text);
+                setLastNameError('');
+              }}
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+          {lastNameError ? <Text style={styles.errorText}>{lastNameError}</Text> : null}
           
           {/* Campo de email */}
           <View style={styles.inputContainer}>
@@ -221,6 +281,8 @@ const Register = () => {
     </KeyboardAvoidingView>
   );
 };
+
+// ...existing code...
 
 const styles = StyleSheet.create({
   container: {

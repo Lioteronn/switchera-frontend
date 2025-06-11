@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Lock, Mail } from 'lucide-react-native';
+import { ArrowLeft, Lock, User } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,14 +15,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-
 import { UserService } from '@/api/userService';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [emailError, setEmailError] = useState('');
+  const [usernameError, setUsernameError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -46,25 +45,25 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const response = await UserService.login(email, password);
+      const response = await UserService.login(username, password);
       if (response.status === 200) {
         // Redirigir al usuario a la pantalla principal
         Alert.alert('Éxito', 'Has iniciado sesión correctamente', [
           {
             text: 'Aceptar',
             onPress: () => {
-              router.push('/(tabs)/home');
+              router.push('/(tabs)/profile');
             }
           }
         ]);
-        router.push('/(tabs)/home');
+        router.push('/(tabs)');
       } else {
         // Manejar errores de autenticación
-        setEmailError('Correo o contraseña incorrectos');
+        setUsernameError('Usuario o contraseña incorrectos');
       }
     } catch (error) {
       console.error('Error al iniciar sesión:', error);
-      setEmailError('Error al iniciar sesión. Inténtalo de nuevo más tarde.');
+      setUsernameError('Error al iniciar sesión. Inténtalo de nuevo más tarde.');
     } finally {
       setIsLoading(false);
     }
@@ -90,23 +89,22 @@ const Login = () => {
         <Text style={styles.title}>Iniciar Sesión</Text>
         <Text style={styles.subtitle}>Bienvenido a Switchera</Text>
 
-        {/* Campo de email */}
+        {/* Campo de usuario */}
         <View style={styles.inputContainer}>
-          <Mail size={20} color="#64748b" style={styles.inputIcon} />
+          <User size={20} color="#64748b" style={styles.inputIcon} />
           <TextInput
             style={styles.input}
-            placeholder="Correo Electrónico"
-            value={email}
+            placeholder="Nombre de Usuario"
+            value={username}
             onChangeText={(text) => {
-              setEmail(text);
-              setEmailError('');
+              setUsername(text);
+              setUsernameError('');
             }}
-            keyboardType="email-address"
             placeholderTextColor="#94a3b8"
             autoCapitalize="none"
           />
         </View>
-        {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+        {usernameError ? <Text style={styles.errorText}>{usernameError}</Text> : null}
 
         {/* Campo de contraseña */}
         <View style={styles.inputContainer}>
@@ -154,6 +152,8 @@ const Login = () => {
     </KeyboardAvoidingView>
   );
 };
+
+// ...existing code...
 
 const styles = StyleSheet.create({
   container: {
