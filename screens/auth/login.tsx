@@ -1,9 +1,9 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Lock, User } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,59 +13,82 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { UserService } from '@/api/userService';
+import { useAuth } from '@/context/AuthContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [usernameError, setUsernameError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
+  const [error, setError] = useState('');
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const validatePassword = (password: string) => {
-    if (!password) return "La contraseña es obligatoria";
-    if (password.length < 6) return "La contraseña debe tener al menos 6 caracteres";
-    return "";
-  };
+  const { login, isLoading, isAuthenticated, tokens } = useAuth();
+
+  // Debug: Inspeccionar AsyncStorage al cargar el componente
+  useEffect(() => {
+    const inspectAsyncStorage = async () => {
+      try {
+        console.log(' === INSPECTING FULL ASYNCSTORAGE (FROM LOGIN) ===');
+        const keys = await AsyncStorage.getAllKeys();
+        console.log(' All keys in AsyncStorage:', keys);
+        
+        const allData = await AsyncStorage.multiGet(keys);
+        console.log(' All data in AsyncStorage:');
+        allData.forEach(([key, value]) => {
+          console.log(`   ${key}:`, {
+            exists: !!value,
+            length: value?.length,
+            preview: value?.substring(0, 100) + '...',
+            fullValue: value
+          });
+        });
+        console.log(' === ASYNCSTORAGE INSPECTION COMPLETE ===');
+      } catch (error) {
+        console.error(' Error inspecting AsyncStorage:', error);
+      }
+    };
+    
+    inspectAsyncStorage();
+  }, []); // Se ejecuta solo cuando se monta el componente Login
 
   const handleLogin = async () => {
-    // Validar formulario
-    const passwordValidationError = validatePassword(password);
-
-    setPasswordError(passwordValidationError);
-
-    if (passwordValidationError) {
+    if (!username || !password) {
+      setError('Please enter both username and password');
       return;
     }
 
-    setIsLoading(true);
-
     try {
-      const response = await UserService.login(username, password);
-      if (response.status === 200) {
-        // Redirigir al usuario a la pantalla principal
-        Alert.alert('Éxito', 'Has iniciado sesión correctamente', [
-          {
-            text: 'Aceptar',
-            onPress: () => {
-              router.push('/(tabs)/profile');
-            }
-          }
-        ]);
-        router.push('/(tabs)');
-      } else {
-        // Manejar errores de autenticación
-        setUsernameError('Usuario o contraseña incorrectos');
-      }
-    } catch (error) {
-      console.error('Error al iniciar sesión:', error);
-      setUsernameError('Error al iniciar sesión. Inténtalo de nuevo más tarde.');
-    } finally {
-      setIsLoading(false);
+      setError('');
+      console.log(' Attempting login with username:', username);
+      
+      await login(username, password);
+      
+      // Debug del estado después del login
+      console.log(' Estado inmediatamente después del login:', {
+        isAuthenticated,
+        hasTokens: !!tokens,
+        message: 'Login completed, waiting for AuthWrapper navigation...'
+      });
+      
+      // Verificar el estado después de un delay
+      setTimeout(() => {
+        console.log(' Estado 500ms después del login:', {
+          isAuthenticated,
+          hasTokens: !!tokens
+        });
+        
+        // Verificar AsyncStorage después del login
+        AsyncStorage.multiGet(['accessToken', 'refreshToken', 'userData']).then((data) => {
+          console.log(' Tokens in AsyncStorage after login:', data);
+        });
+      }, 500);
+      
+      // AuthWrapper will handle navigation after successful login
+    } catch (err) {
+      console.error(' Login form error:', err);
+      setError('Invalid credentials. Please try again.');
     }
   };
 
@@ -74,9 +97,7 @@ const Login = () => {
       style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* Fondo con burbujas animadas */}
-
-      {/* Botón para volver atrás */}
+      {/* Back button */}
       <TouchableOpacity
         style={[styles.backButton, { top: insets.top + 10 }]}
         onPress={() => router.back()}
@@ -84,76 +105,90 @@ const Login = () => {
         <ArrowLeft size={24} color="#333" />
       </TouchableOpacity>
 
-      {/* Contenedor del formulario */}
+      {/* Form container */}
       <View style={styles.formContainer}>
-        <Text style={styles.title}>Iniciar Sesión</Text>
-        <Text style={styles.subtitle}>Bienvenido a Switchera</Text>
+        <Text style={styles.title}>Sign In</Text>
+        <Text style={styles.subtitle}>Welcome to Switchera</Text>
 
-        {/* Campo de usuario */}
+        {/* Username field */}
         <View style={styles.inputContainer}>
           <User size={20} color="#64748b" style={styles.inputIcon} />
           <TextInput
             style={styles.input}
-            placeholder="Nombre de Usuario"
+            placeholder="Username"
             value={username}
             onChangeText={(text) => {
               setUsername(text);
-              setUsernameError('');
+              setError('');
             }}
             placeholderTextColor="#94a3b8"
             autoCapitalize="none"
+            autoCorrect={false}
+            testID="username-input"
           />
         </View>
-        {usernameError ? <Text style={styles.errorText}>{usernameError}</Text> : null}
 
-        {/* Campo de contraseña */}
+        {/* Password field */}
         <View style={styles.inputContainer}>
           <Lock size={20} color="#64748b" style={styles.inputIcon} />
           <TextInput
             style={styles.input}
-            placeholder="Contraseña"
+            placeholder="Password"
             value={password}
             onChangeText={(text) => {
               setPassword(text);
-              setPasswordError('');
+              setError('');
             }}
             secureTextEntry
             placeholderTextColor="#94a3b8"
+            autoCapitalize="none"
+            autoCorrect={false}
+            testID="password-input"
           />
         </View>
-        {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
 
-        {/* Link "Olvidé mi contraseña" */}
+        {/* Error message */}
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+        {/* Forgot password link */}
         <TouchableOpacity style={styles.forgotPasswordContainer}>
-          <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
+          <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
         </TouchableOpacity>
 
-        {/* Botón de inicio de sesión */}
+        {/* Login button */}
         <TouchableOpacity
           style={[styles.loginButton, isLoading && styles.disabledButton]}
           onPress={handleLogin}
           disabled={isLoading}
+          testID="login-button"
         >
           {isLoading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.loginButtonText}>Iniciar sesión</Text>
+            <Text style={styles.loginButtonText}>Sign In</Text>
           )}
         </TouchableOpacity>
 
-        {/* Enlace para registrarse */}
+        {/* Register link */}
         <View style={styles.registerContainer}>
-          <Text style={styles.registerText}>¿No tienes una cuenta? </Text>
+          <Text style={styles.registerText}>Don&apos;t have an account? </Text>
           <Pressable onPress={() => router.push('/(auth)/register')}>
-            <Text style={styles.registerLink}>Regístrate aquí</Text>
+            <Text style={styles.registerLink}>Register here</Text>
           </Pressable>
+        </View>
+
+        {/* Test credentials */}
+        <View style={styles.testCredentialsContainer}>
+          <Text style={styles.testCredentialsTitle}>Test Credentials</Text>
+          <Text style={styles.testCredentials}>
+            Username: switchera{'\n'}
+            Password: bruneger2025
+          </Text>
         </View>
       </View>
     </KeyboardAvoidingView>
   );
 };
-
-// ...existing code...
 
 const styles = StyleSheet.create({
   container: {
@@ -270,8 +305,26 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     fontSize: 14,
     marginBottom: 12,
-    marginTop: -8,
-    paddingLeft: 12,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  testCredentialsContainer: {
+    marginTop: 32,
+    padding: 16,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+  },
+  testCredentialsTitle: {
+    textAlign: 'center',
+    fontWeight: 'bold',
+    color: '#64748b',
+    marginBottom: 8,
+  },
+  testCredentials: {
+    textAlign: 'center',
+    color: '#64748b',
+    fontSize: 14,
+    lineHeight: 20,
   },
 });
 

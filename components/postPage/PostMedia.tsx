@@ -1,74 +1,143 @@
-import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Dimensions, FlatList, Image, Modal, Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 interface PostMediaProps {
     photos: string[];
+    onImageSize?: (width: number, height: number) => void;
 }
 
-const PostMedia: React.FC<PostMediaProps> = ({ photos }) => {
+const { height, width } = Dimensions.get('window');
+const imageHeight = Math.round(height * 1);
+const imageWidth = Math.round(width * 1);
+
+const PostMedia: React.FC<PostMediaProps> = ({ photos, onImageSize }) => {
+    const [modalVisible, setModalVisible] = useState(false);
+    const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+    const [aspectRatio, setAspectRatio] = useState<number | undefined>(1);
+
+    useEffect(() => {
+        if (photos.length > 0) {
+            Image.getSize(photos[0], (w, h) => {
+                if (onImageSize) onImageSize(w, h);
+                setAspectRatio(w / h);
+            });
+        }
+    }, [photos, onImageSize]);
+
     if (!photos || photos.length === 0) {
         return null;
     }
-    
+
+    const openModal = (photo: string) => {
+        setSelectedPhoto(photo);
+        setModalVisible(true);
+    };
+
+    const closeModal = () => {
+        setModalVisible(false);
+        setSelectedPhoto(null);
+    };
+
     const renderPhotos = () => {
-        switch (photos.length) {
-            case 1:
-                return (
-                    <View style={styles.singlePhotoContainer}>
-                        <Image 
-                            source={{ uri: photos[0] }} 
-                            style={styles.singlePhoto} 
-                            resizeMode="cover"
-                        />
-                    </View>
-                );
-            case 2:
-                return (
-                    <View style={styles.rowContainer}>
-                        {photos.map((photo, index) => (
-                            <Image 
-                                key={index} 
-                                source={{ uri: photo }} 
-                                style={styles.halfWidthPhoto} 
-                                resizeMode="cover"
-                            />
-                        ))}
-                    </View>
-                );
-            case 3:
-                return (
-                    <View style={styles.threePhotoContainer}>
-                        <Image 
-                            source={{ uri: photos[0] }} 
-                            style={styles.mainPhoto} 
-                            resizeMode="cover"
-                        />
-                        <View style={styles.overlayContainer}>
-                            <Text style={styles.overlayText}>+2</Text>
-                        </View>
-                    </View>
-                );
-            case 4:
-                return (
-                    <View style={styles.gridContainer}>
-                        {photos.map((photo, index) => (
-                            <Image 
-                                key={index} 
-                                source={{ uri: photo }} 
-                                style={styles.gridPhoto} 
-                                resizeMode="cover"
-                            />
-                        ))}
-                    </View>
-                );
-            default:
-                return null;
+        if (photos.length === 1) {
+            return (
+                <TouchableOpacity onPress={() => openModal(photos[0])} style={styles.singlePhotoContainer}>
+                    <Image
+                        source={{ uri: photos[0] }}
+                        style={[styles.singlePhoto, aspectRatio ? { aspectRatio } : {}]}
+                        resizeMode="cover"
+                    />
+                </TouchableOpacity>
+            );
         }
+        if (photos.length === 2) {
+            return (
+                <FlatList
+                    data={photos}
+                    horizontal
+                    pagingEnabled
+                    keyExtractor={(_, index) => index.toString()}
+                    renderItem={({ item }) => (
+                        <TouchableOpacity onPress={() => openModal(item)} style={{ width: imageWidth }}>
+                            <Image
+                                source={{ uri: item }}
+                                style={[styles.singlePhoto, { width: imageHeight }]}
+                            />
+                        </TouchableOpacity>
+                    )}
+                    showsHorizontalScrollIndicator={false}
+                />
+            );
+        }
+        if (photos.length === 3) {
+            return (
+                <View>
+                    <View style={styles.rowContainer}>
+                        <TouchableOpacity onPress={() => openModal(photos[0])} style={{ width: '49%' }}>
+                            <Image
+                                source={{ uri: photos[0] }}
+                                style={styles.halfWidthPhoto}
+                                resizeMode="cover"
+                            />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => openModal(photos[1])} style={{ width: '49%' }}>
+                            <Image
+                                source={{ uri: photos[1] }}
+                                style={styles.halfWidthPhoto}
+                                resizeMode="cover"
+                            />
+                        </TouchableOpacity>
+                    </View>
+                    <View style={{ marginTop: 6 }}>
+                        <TouchableOpacity onPress={() => openModal(photos[2])} style={{ width: '100%' }}>
+                            <Image
+                                source={{ uri: photos[2] }}
+                                style={styles.singlePhoto}
+                                resizeMode="cover"
+                            />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            );
+        }
+        // Si hay más de 4, solo mostramos las 4 primeras
+        return (
+            <View style={styles.gridContainer}>
+                {photos.slice(0, 4).map((photo, index) => (
+                    <TouchableOpacity key={index} onPress={() => openModal(photo)} style={{ width: '49%' }}>
+                        <Image
+                            source={{ uri: photo }}
+                            style={styles.gridPhoto}
+                            resizeMode="cover"
+                        />
+                    </TouchableOpacity>
+                ))}
+            </View>
+        );
     };
 
     return (
         <View style={styles.container}>
             {renderPhotos()}
+            <Modal
+                visible={modalVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={closeModal}
+            >
+                <View style={styles.modalBackground}>
+                    <Pressable style={styles.modalBackground} onPress={closeModal}>
+                        {selectedPhoto && (
+                            <Image
+                                source={{ uri: selectedPhoto }}
+                                style={styles.fullscreenPhoto}
+                                resizeMode="contain"
+                            />
+                            
+                        )}
+                    </Pressable>
+                </View>
+            </Modal>
         </View>
     );
 };
@@ -91,34 +160,9 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     halfWidthPhoto: {
-        width: '49%',
-        height: 200,
-        borderRadius: 8,
-    },
-    threePhotoContainer: {
         width: '100%',
-        position: 'relative',
-    },
-    mainPhoto: {
-        width: '100%',
-        height: 300,
+        height: 400,
         borderRadius: 8,
-    },
-    overlayContainer: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRadius: 8,
-    },
-    overlayText: {
-        color: 'white',
-        fontSize: 28,
-        fontWeight: 'bold',
     },
     gridContainer: {
         flexDirection: 'row',
@@ -126,10 +170,22 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     gridPhoto: {
-        width: '49%',
-        height: 150,
+        width: '100%',
+        height: '100%',
         borderRadius: 8,
         marginBottom: '2%',
+    },
+    modalBackground: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.9)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fullscreenPhoto: {
+        width: '90%',
+        height: '70%',
+        zIndex: 4,
+        borderRadius: 12,
     },
 });
 

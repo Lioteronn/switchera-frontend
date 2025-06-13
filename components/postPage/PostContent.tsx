@@ -1,5 +1,5 @@
 import React from 'react';
-
+import { Text, View } from 'react-native';
 interface PostContentProps {
     title: string;
     categories: string[];
@@ -8,17 +8,30 @@ interface PostContentProps {
 
 const PostContent: React.FC<PostContentProps> = ({ title, categories, description }) => {
     return (
-        <div className="p-4">
-            <h2 className="text-2xl font-bold mb-2">{title}</h2>
-            <div className="flex flex-wrap mb-4">
+        <React.Fragment>
+            <View style={{ padding: 16 }}></View>
+            <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 8 }}>{title}</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 16 }}>
                 {categories.map((category, index) => (
-                    <span key={index} className="bg-blue-200 text-blue-800 text-sm font-semibold mr-2 px-2.5 py-0.5 rounded">
-                        {category}
-                    </span>
+                <View
+                    key={index}
+                    style={{
+                    backgroundColor: '#BFDBFE',
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    marginRight: 8,
+                    marginBottom: 4,
+                    }}
+                >
+                    <Text style={{ color: '#1E40AF', fontSize: 12, fontWeight: '600' }}>
+                    {category}
+                    </Text>
+                </View>
                 ))}
-            </div>
-            <p className="text-gray-700">{description}</p>
-        </div>
+            </View>
+            <Text style={{ color: '#374151' }}>{description}</Text>
+        </React.Fragment>
     );
 };
 

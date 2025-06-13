@@ -91,29 +91,33 @@ const PostCard: React.FC<PostCardProps> = ({
     };
 
     return (
-        <View style={styles.card}>
+        <View style={styles.card} >
             <PostHeader userId={userId} userName={userName} userImage={userImage} />
             <PostContent title={title} categories={categories} description={description} />
-            {photos?.length > 0 && <PostMedia photos={photos} />}
+            {photos?.length > 0 && (
+            <View style={styles.photocontainer}>
+                <PostMedia photos={photos} />
+            </View>
+            )}
             <PostActions 
-                postId={postId}
-                likes={likes} 
-                comments={comments.length} 
-                onLike={() => setLikes(likes + 1)} 
-                onComment={toggleComments} 
-                onSave={handleSave} 
-                saved={saved} 
+            postId={postId}
+            likes={likes} 
+            comments={comments.length} 
+            onLike={() => setLikes(likes + 1)} 
+            onComment={toggleComments} 
+            onSave={handleSave} 
+            saved={saved} 
             />
             
             {showComments && (
-                <CommentSection
-                    postId={postId}
-                    comments={comments.map(comment => ({
-                        ...comment,
-                        timestamp: formatTimestamp(comment.timestamp)
-                    }))}
-                    onAddComment={handleAddComment}
-                />
+            <CommentSection
+                postId={postId}
+                comments={comments.map(comment => ({
+                ...comment,
+                timestamp: formatTimestamp(comment.timestamp)
+                }))}
+                onAddComment={handleAddComment}
+            />
             )}
         </View>
     );
@@ -122,14 +126,22 @@ const PostCard: React.FC<PostCardProps> = ({
 const styles = StyleSheet.create({
     card: {
         backgroundColor: 'white',
-        borderRadius: 12,
+        borderRadius: 16,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowOpacity: 0.2,
+        shadowRadius: 16,
+        elevation: 6,
         overflow: 'hidden',
-    }
+        padding: 16,
+    },
+    photocontainer: {
+        width: '100%',
+    },
+    photo: {
+        width: '100%',
+        aspectRatio: 1,
+    },
 });
 
 export default PostCard;

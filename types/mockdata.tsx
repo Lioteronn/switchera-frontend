@@ -1,3 +1,4 @@
+import { ContactProps } from '@/components/activityPageNew/ContactsList';
 import { Chat, Message, ServiceItem, UpcomingClass } from '@/types/props';
 
 // Mock data for chats and users
@@ -269,3 +270,33 @@ export const services: ServiceItem[] = [
   },
 ];
 
+// Mock data for contacts
+export const contacts: ContactProps[] = [
+  {
+    id: '1',
+    name: 'John Doe',
+    avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
+    lastMessage: 'Hey, how are you?',
+    timestamp: '10:30 AM',
+    unreadCount: 2,
+    status: 'online',
+  },
+  {
+    id: '2',
+    name: 'Jane Smith',
+    avatar: 'https://randomuser.me/api/portraits/women/2.jpg',
+    lastMessage: 'Are we still on for tomorrow?',
+    timestamp: 'Yesterday',
+    unreadCount: 0,
+    status: 'offline',
+  },
+  {
+    id: '3',
+    name: 'Alice Johnson',
+    avatar: 'https://randomuser.me/api/portraits/women/3.jpg',
+    lastMessage: 'I sent you the files.',
+    timestamp: '2 days ago',
+    unreadCount: 5,
+    status: 'away',
+  },
+];

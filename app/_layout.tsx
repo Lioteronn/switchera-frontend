@@ -1,9 +1,10 @@
-import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import "@/global.css";
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import 'react-native-reanimated';
 
+import AuthWrapper from "@/components/AuthWrapper";
+import { AuthProvider } from "@/context/AuthContext";
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -11,16 +12,18 @@ export default function RootLayout() {
   });
 
   if (!loaded) {
-    // Async font loading only occurs in development.
     return null;
   }
 
   return (
-    <GluestackUIProvider mode="light">
-      <Stack>
+    <AuthProvider>
+      <AuthWrapper>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="+not-found" />
-      </Stack>
-    </GluestackUIProvider>
+        </Stack>
+      </AuthWrapper>
+    </AuthProvider>
   );
 }
