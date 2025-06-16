@@ -130,6 +130,31 @@ export const profileApi = {
     return fetch(`/api/friends/requests/${requestId}/reject`, { method: 'POST' });
   },
 
+  // Book a service using Supabase
+  bookService: async ({ serviceId }: { serviceId: string }) => {
+    try {
+      return await supabaseProfileRepository.bookService(serviceId);
+    } catch (error) {
+      console.error('Error booking service (Supabase):', error);
+      throw error;
+    }
+  },
+
+  // Propose an exchange using Supabase
+  proposeExchange: async ({
+    serviceId,
+    offeredServiceId,
+  }: {
+    serviceId: string;
+    offeredServiceId: string;
+  }) => {
+    try {
+      return await supabaseProfileRepository.proposeExchange(serviceId, offeredServiceId);
+    } catch (error) {
+      console.error('Error proposing exchange (Supabase):', error);
+      throw error;
+    }
+  },
 
 };
 

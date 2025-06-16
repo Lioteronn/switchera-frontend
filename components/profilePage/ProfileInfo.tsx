@@ -107,7 +107,7 @@ export default function ProfileInfo({
     } else if (lastName) {
       return lastName;
     }
-    return profile?.username || 'Unknown User';
+    return profile?.auth_user?.username || profile?.username || 'Unknown User';
   };
 
   // Helper function to format birth date
@@ -155,7 +155,7 @@ export default function ProfileInfo({
           <Text style={styles.fullName}>{getFullName()}</Text>
           
           {/* Username */}
-          <Text style={styles.username}>@{profile?.username || 'username'}</Text>
+          <Text style={styles.username}>@{profile?.auth_user?.username || profile?.username || 'username'}</Text>
           
           {/* Bio */}
           {profile?.bio && (
@@ -231,7 +231,7 @@ export default function ProfileInfo({
           <Text style={styles.statLabel}>Following</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>{profile?.services?.length || '0'}</Text>
+          <Text style={styles.statValue}>{profile?.servicesCount || '0'}</Text>
           <Text style={styles.statLabel}>Services</Text>
         </View>
         <View style={styles.statItem}>

@@ -127,4 +127,13 @@ export interface User {
   last_name: string;
   email: string;
   is_active: boolean;
+  profile?: {
+    id: number;
+    bio: string;
+    location: string;
+    interests: any;
+    speciality: any;
+    profile_picture: string | null;
+    rating: number | null;
+  };
 }

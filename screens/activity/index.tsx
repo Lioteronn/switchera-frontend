@@ -1,3 +1,4 @@
+import { getUserAuthStatus } from '@/utils/supabase';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,10 +20,20 @@ const contacts: ContactProps[] = rawContacts.map((c) => ({
 export default function ActivityScreen() {
   const [selectedContact, setSelectedContact] = useState<ContactProps | null>(null);
   const [screenWidth, setScreenWidth] = useState(width);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const isWideScreen = screenWidth > 768; // Adjust this breakpoint as needed
   const isMediumScreen = screenWidth > 480 && screenWidth <= 768;
   const isMobile = screenWidth <= 480;
+
+  useEffect(() => {
+    // Get current user ID
+    const getCurrentUser = async () => {
+      const authStatus = await getUserAuthStatus();
+      setCurrentUserId(authStatus.userId?.toString() || null);
+    };
+    getCurrentUser();
+  }, []);
 
 
   useEffect(() => {
@@ -67,11 +78,10 @@ export default function ActivityScreen() {
             isWideScreen && styles.wideChat,
             isMediumScreen && styles.mediumChat,
             isMobile && styles.mobileChat,
-          ]}>
-            <ChatDisplay 
+          ]}>            <ChatDisplay 
               selectedContact={selectedContact}
               onBack={() => setSelectedContact(null)}
-              currentUserId="current-user-123" // Replace with actual user ID
+              currentUserId={currentUserId || "current-user-123"} // Use actual user ID or fallback
             />
           </View>
         )}

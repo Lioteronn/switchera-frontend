@@ -1,3 +1,4 @@
+import { profileApi } from '@/api/profile'; // Import profileApi
 import { Card } from '@/components/ui/card';
 import { Heading } from '@/components/ui/heading';
 import { HStack } from '@/components/ui/hstack';
@@ -31,7 +32,7 @@ export type ServiceCardProps = {
     modality: 'online' | 'in-person' | 'both';
   }[];
   timeAvailability?: { [date: string]: string[] }; // Key is date in YYYY-MM-DD format, value is array of times in HH:MM format
-
+  serviceId: string; // Add this prop for API calls
 };
 
 const ServiceCard = ({
@@ -49,9 +50,13 @@ const ServiceCard = ({
   onPress,
   fullDescription = description,
   userServices = [],
+  serviceId,
 }: ServiceCardProps) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'book' | 'exchange'>('details');
+  const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [selectedExchangeServiceId, setSelectedExchangeServiceId] = useState<string | null>(null);
 
   const renderStars = (rating: number) => {
     const stars = [];
@@ -95,6 +100,40 @@ const ServiceCard = ({
       case 'both':
         return 'Online / In Person';
     }
+  };
+
+  // Booking handler
+  const handleBook = async () => {
+    setLoading(true);
+    setFeedback(null);
+    try {
+      // Replace with your actual booking API call
+      // Example: await profileApi.bookService({ serviceId, ...otherData });
+      await profileApi.bookService?.({ serviceId }); // Add this method to profileApi if not present
+      setFeedback('Booking confirmed!');
+    } catch (err) {
+      setFeedback('Booking failed. Please try again.');
+    }
+    setLoading(false);
+  };
+
+  // Exchange handler
+  const handleProposeExchange = async () => {
+    if (!selectedExchangeServiceId) {
+      setFeedback('Please select a service to exchange.');
+      return;
+    }
+    setLoading(true);
+    setFeedback(null);
+    try {
+      // Replace with your actual exchange API call
+      // Example: await profileApi.proposeExchange({ serviceId, offeredServiceId: selectedExchangeServiceId });
+      await profileApi.proposeExchange?.({ serviceId, offeredServiceId: selectedExchangeServiceId }); // Add this method to profileApi if not present
+      setFeedback('Exchange proposal sent!');
+    } catch (err) {
+      setFeedback('Exchange failed. Please try again.');
+    }
+    setLoading(false);
   };
 
   return (
@@ -325,11 +364,27 @@ const ServiceCard = ({
                         <Text style={{ color: '#1E40AF', fontWeight: '700', fontSize: 16 }}>${price.toFixed(2)}</Text>
                       </View>
                     </View>
-                    <TouchableOpacity style={{
-                      backgroundColor: '#3B82F6', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 20
-                    }}>
-                      <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>Confirm Booking</Text>
+                    <TouchableOpacity
+                      style={{
+                        backgroundColor: loading ? '#93C5FD' : '#3B82F6',
+                        borderRadius: 8,
+                        padding: 14,
+                        alignItems: 'center',
+                        marginTop: 20,
+                        opacity: loading ? 0.7 : 1,
+                      }}
+                      onPress={handleBook}
+                      disabled={loading}
+                    >
+                      <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>
+                        {loading ? 'Booking...' : 'Confirm Booking'}
+                      </Text>
                     </TouchableOpacity>
+                    {feedback && (
+                      <Text style={{ color: feedback.includes('failed') ? 'red' : 'green', marginTop: 10, textAlign: 'center' }}>
+                        {feedback}
+                      </Text>
+                    )}
                   </View>
                 </View>
               )}
@@ -348,8 +403,11 @@ const ServiceCard = ({
                           key={index}
                           style={{
                             flexDirection: 'row', borderWidth: 1, borderColor: '#E5E7EB',
-                            borderRadius: 8, marginBottom: 12, padding: 10, alignItems: 'center'
+                            borderRadius: 8, marginBottom: 12, padding: 10, alignItems: 'center',
+                            borderColor: selectedExchangeServiceId === service.id ? '#3B82F6' : '#E5E7EB',
+                            borderWidth: selectedExchangeServiceId === service.id ? 2 : 1,
                           }}
+                          onPress={() => setSelectedExchangeServiceId(service.id)}
                         >
                           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
                             {service.imageUrl ? (
@@ -406,11 +464,27 @@ const ServiceCard = ({
                     </View>
                   )}
                   {userServices.length > 0 && (
-                    <TouchableOpacity style={{
-                      backgroundColor: '#3B82F6', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 20
-                    }}>
-                      <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>Propose Exchange</Text>
+                    <TouchableOpacity
+                      style={{
+                        backgroundColor: loading ? '#93C5FD' : '#3B82F6',
+                        borderRadius: 8,
+                        padding: 14,
+                        alignItems: 'center',
+                        marginTop: 20,
+                        opacity: loading ? 0.7 : 1,
+                      }}
+                      onPress={handleProposeExchange}
+                      disabled={loading}
+                    >
+                      <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>
+                        {loading ? 'Proposing...' : 'Propose Exchange'}
+                      </Text>
                     </TouchableOpacity>
+                  )}
+                  {feedback && (
+                    <Text style={{ color: feedback.includes('failed') ? 'red' : 'green', marginTop: 10, textAlign: 'center' }}>
+                      {feedback}
+                    </Text>
                   )}
                 </View>
               )}

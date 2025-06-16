@@ -360,6 +360,7 @@ const Services = () => {
         imageUrl={item.imageUrl}
         timeAvailability={item.timeAvailability}
         onPress={() => console.log('Card pressed:', item.id)}
+        serviceId={item.id} // <-- Add this line
       />
     </View>
   );

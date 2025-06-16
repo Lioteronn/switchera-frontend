@@ -2,6 +2,7 @@ import { createAuthenticatedSupabaseClient, getUserAuthStatus, Profile, supabase
 
 export interface ProfileWithUser extends Profile {
     auth_user?: User;
+    servicesCount?: number;
 }
 
 export interface ProfileUpdateData {
@@ -32,9 +33,7 @@ export class SupabaseProfileRepository {    /**
         // For now, use the regular client due to JWT signature issues
         // TODO: Fix JWT validation in Supabase or implement proper RLS policies
         const client = supabase;
-        console.log('🔧 Using regular client (RLS should be disabled for testing)');
-
-        const { data, error } = await client
+        console.log('🔧 Using regular client (RLS should be disabled for testing)');        const { data, error } = await client
             .from('users_profile')
             .select(`
         *,
@@ -48,9 +47,7 @@ export class SupabaseProfileRepository {    /**
         )
       `)
             .eq('user_id', userId)
-            .single();
-
-        if (error) {
+            .single();if (error) {
             if (error.code === 'PGRST301' || error.message?.includes('JWSError')) {
                 console.error('❌ RLS blocking request - you need to disable RLS temporarily:', error);
                 throw new Error(`Database access denied. Please disable RLS on users_profile table: ${error.message}`);
@@ -64,6 +61,18 @@ export class SupabaseProfileRepository {    /**
                 hint: error.hint
             });
             throw new Error(`Failed to fetch profile: ${error.message}`);
+        }
+
+        if (data) {
+            // Fetch services count separately and add to profile data
+            const servicesCount = await this.getServicesCount(userId);
+            const profileWithServices = {
+                ...data,
+                servicesCount
+            };
+            
+            console.log('✅ Profile fetched successfully with services count:', servicesCount);
+            return profileWithServices;
         }
 
         console.log('✅ Profile fetched successfully:', data ? 'Profile found' : 'No profile');
@@ -418,6 +427,62 @@ export class SupabaseProfileRepository {    /**
                 }
             };
         }
+    }
+
+    /**
+     * Get services count for a user
+     */
+    async getServicesCount(userId: number): Promise<number> {
+        console.log('🔍 Fetching services count for user_id:', userId);
+        
+        const client = supabase;
+        
+        const { count, error } = await client
+            .from('users_service')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId);
+
+        if (error) {
+            console.error('❌ Error fetching services count:', error);
+            return 0;
+        }
+
+        console.log('✅ Services count fetched:', count);
+        return count || 0;
+    }
+
+    /**
+     * Book a service (insert a booking row)
+     */
+    async bookService(serviceId: string) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+        const { error, data } = await supabase
+            .from('service_bookings')
+            .insert([{ service_id: serviceId, user_id: user.id }])
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    }
+
+    /**
+     * Propose an exchange (insert an exchange proposal row)
+     */
+    async proposeExchange(serviceId: string, offeredServiceId: string) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+        const { error, data } = await supabase
+            .from('service_exchanges')
+            .insert([{
+                requested_service_id: serviceId,
+                offered_service_id: offeredServiceId,
+                proposer_user_id: user.id,
+            }])
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
     }
 }
 

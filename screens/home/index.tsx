@@ -574,6 +574,7 @@ export default function HomeScreen() {
               imageUrl={service.imageUrl}
               fullDescription={service.fullDescription}
               timeAvailability={service.timeAvailability as any}
+              serviceId={service.id} // <-- Add this line
             />
           ))}
           
