@@ -20,15 +20,10 @@ interface SkillsPanelProps {
 const SkillsPanel: React.FC<SkillsPanelProps> = ({ userId, isCurrentUser }) => {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<'teaching' | 'learning'>('teaching');
 
-  useEffect(() => {
-    fetchSkills();
-  }, [userId]);
-
-  const fetchSkills = async () => {
+  const fetchSkills = React.useCallback(async () => {
     setLoading(true);
     try {
       // In a real app, fetch from API
@@ -40,11 +35,15 @@ const SkillsPanel: React.FC<SkillsPanelProps> = ({ userId, isCurrentUser }) => {
       setSkills(mockSkills);
     } catch (err) {
       console.error('Error fetching skills:', err);
-      setError('Failed to load skills');
+      // Optionally handle error UI here if needed
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
+
+  useEffect(() => {
+    fetchSkills();
+  }, [userId, fetchSkills]);
 
   const renderSkillItem = (skill: Skill, showType: boolean = false) => (
     <TouchableOpacity 

@@ -8,7 +8,6 @@ import React, { useState } from 'react';
 import { Image, Modal, Pressable, ScrollView, TouchableOpacity, View } from 'react-native';
 
 
-
 export type ServiceCardProps = {
   userId: string;
   userImage: string;
@@ -101,53 +100,55 @@ const ServiceCard = ({
   return (
     <>
       <Pressable onPress={onPress}>
-        <Card style={{ borderRadius: 12, marginBottom: 16, overflow: 'hidden' }}>
+        <Card style={{ borderRadius: 12, marginBottom: 16, overflow: 'hidden', backgroundColor: 'white' }}>
           {imageUrl && (
-            <Image
-              source={{ uri: imageUrl }}
-              style={{ width: '100%', height: 160, resizeMode: 'cover' }}
-              alt={title}
-            />
+        <Image
+          source={{ uri: imageUrl }}
+          style={{ width: '100%', height: 160 }}
+          resizeMode="cover"
+          alt={title}
+        />
           )}
           <View style={{ padding: 16 }}>
-            <HStack space="md" className="mb-3 items-center">
-              <Image
-                source={{ uri: userImage }}
-                style={{ width: 40, height: 40, borderRadius: 20 }}
-                alt={userName}
-              />
-              <VStack>
-                <Text className="font-bold">{userName}</Text>
-                <HStack className="items-center">
-                  {renderStars(rating)}
-                  <Text className="ml-1 text-gray-600 text-sm">({ratingCount})</Text>
-                </HStack>
-              </VStack>
+        <HStack space="md" className="mb-3 items-center">
+          <Image
+            source={{ uri: userImage }}
+            style={{ width: 40, height: 40, borderRadius: 20 }}
+            resizeMode="cover"
+            alt={userName}
+          />
+          <VStack>
+            <Text className="font-bold">{userName}</Text>
+            <HStack className="items-center">
+          {renderStars(rating)}
+          <Text className="ml-1 text-gray-600 text-sm">({ratingCount})</Text>
             </HStack>
-            <Heading size="md" className="mb-1">{title}</Heading>
-            {category && <Text className="text-blue-500 text-xs mb-2">{category}</Text>}
-            <Text className="text-gray-600 mb-3" numberOfLines={2}>{description}</Text>
-            <HStack space="md" className="mb-4 flex-wrap">
-              <HStack space="xs" className="items-center bg-gray-100 px-2 py-1 rounded-full">
-                <Clock size={16} color="#6b7280" />
-                <Text className="text-gray-600 text-xs">{duration} min</Text>
-              </HStack>
-              <HStack space="xs" className="items-center bg-gray-100 px-2 py-1 rounded-full">
-                {getModalityIcon()}
-                <Text className="text-gray-600 text-xs">{getModalityText()}</Text>
-              </HStack>
-            </HStack>
-            <HStack className="justify-between items-center">
-              <Text className="text-lg font-bold text-blue-700">
-                {price > 0 ? `$${price.toFixed(2)}` : 'Exchange Only'}
-              </Text>
-              <TouchableOpacity
-                style={{ backgroundColor: '#3B82F6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 }}
-                onPress={() => { setModalVisible(true); setActiveTab('details'); }}
-              >
-                <Text style={{ color: 'white', fontSize: 12, fontWeight: '500' }}>View Details</Text>
-              </TouchableOpacity>
-            </HStack>
+          </VStack>
+        </HStack>
+        <Heading size="md" className="mb-1">{title}</Heading>
+        {category && <Text className="text-blue-500 text-xs mb-2">{category}</Text>}
+        <Text className="text-gray-600 mb-3" numberOfLines={2}>{description}</Text>
+        <HStack space="md" className="mb-4 flex-wrap">
+          <HStack space="xs" className="items-center bg-gray-100 px-2 py-1 rounded-full">
+            <Clock size={16} color="#6b7280" />
+            <Text className="text-gray-600 text-xs">{duration} min</Text>
+          </HStack>
+          <HStack space="xs" className="items-center bg-gray-100 px-2 py-1 rounded-full">
+            {getModalityIcon()}
+            <Text className="text-gray-600 text-xs">{getModalityText()}</Text>
+          </HStack>
+        </HStack>
+        <HStack className="justify-between items-center">
+          <Text className="text-lg font-bold text-blue-700">
+            {price > 0 ? `$${price.toFixed(2)}` : 'Exchange Only'}
+          </Text>
+          <TouchableOpacity
+            style={{ backgroundColor: '#3B82F6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 }}
+            onPress={() => { setModalVisible(true); setActiveTab('details'); }}
+          >
+            <Text style={{ color: 'white', fontSize: 12, fontWeight: '500' }}>View Details</Text>
+          </TouchableOpacity>
+        </HStack>
           </View>
         </Card>
       </Pressable>
@@ -203,6 +204,7 @@ const ServiceCard = ({
                     <Image
                       source={{ uri: imageUrl }}
                       style={{ width: '100%', height: 200, borderRadius: 8, marginBottom: 16 }}
+                      resizeMode="cover"
                       alt={title}
                     />
                   )}
@@ -210,6 +212,7 @@ const ServiceCard = ({
                     <Image
                       source={{ uri: userImage }}
                       style={{ width: 50, height: 50, borderRadius: 25, marginRight: 12 }}
+                      resizeMode="cover"
                       alt={userName}
                     />
                     <View style={{ flex: 1 }}>
@@ -276,7 +279,7 @@ const ServiceCard = ({
                       height: 100, backgroundColor: '#F3F4F6', borderRadius: 8,
                       justifyContent: 'center', alignItems: 'center', marginBottom: 16
                     }}>
-                    
+
                     </View>
                     <Text style={{ fontSize: 15, fontWeight: '500', color: '#374151', marginBottom: 8 }}>Available time slots</Text>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginVertical: 8 }}>
@@ -353,6 +356,7 @@ const ServiceCard = ({
                               <Image
                                 source={{ uri: service.imageUrl }}
                                 style={{ width: 60, height: 60, borderRadius: 6, marginRight: 12 }}
+                                resizeMode="cover"
                               />
                             ) : (
                               <View style={{

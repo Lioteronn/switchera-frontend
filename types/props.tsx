@@ -74,13 +74,17 @@ export type User = {
   services: ServiceItem[];
 };
 
-export type Friends = {
-  id: string;
-  name: string;
-  image: string | null;
-  online: boolean;
-  blocked: boolean;
+// Friend type definition matching Swagger specification
+export type Friend = {
+  id: string;          // UUID from API
+  name: string;        // Read-only from API
+  image: string | null; // Read-only from API
+  online: boolean;     // From API
+  blocked: boolean;    // From API
 }
+
+// Alias for backward compatibility
+export type Friends = Friend;
 
 export type BadgeTier = 'bronze' | 'silver' | 'gold' | 'diamond' | 'ruby' | 'legendary';
 

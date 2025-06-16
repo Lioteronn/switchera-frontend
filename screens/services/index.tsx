@@ -1,8 +1,9 @@
+import { ServicesRepository } from '@/api/servicesRepository';
+import CreateServiceForm from '@/components/servicePage/CreateServiceForm';
 import SearchPart from '@/components/servicePage/SearchPart';
-import ServiceAddModal from '@/components/servicePage/ServiceAddModal';
 import ServiceCard from '@/components/servicePage/ServiceCard';
 import SquareAddButton from '@/components/servicePage/SquareAddButton';
-import { services } from '@/types/mockdata';
+import { UserService } from '@/types/profile';
 import { ServiceItem } from '@/types/props';
 import { BookmarkIcon, CalendarIcon } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
@@ -13,6 +14,7 @@ const MAX_CONTENT_WIDTH = 1200;
 const MOBILE_CARD_WIDTH = 320;
 const ACCENT_COLOR = '#84cc16';
 const SCREEN_HEIGHT = Dimensions.get('window').height;
+
 
 
 const styles = StyleSheet.create({
@@ -41,122 +43,39 @@ const styles = StyleSheet.create({
 });
 
 
-// API service module - in a real app, move this to a separate file
-const apiService = {
-  // Fetch all services
-  getServices: async (): Promise<ServiceItem[]> => {
-    try {
-      // Replace with your actual API call
-      // const response = await fetch('https://your-api.com/services');
-      // const data = await response.json();
-      // return data;
-
-      // For now, return mock data
-      return services;
-    } catch (error) {
-      console.error('Error fetching services:', error);
-      throw error;
-    }
-  },
-
-  // Fetch services by category (all, booked, saved)
-  getServicesByCategory: async (category: 'all' | 'booked' | 'saved'): Promise<ServiceItem[]> => {
-    try {
-      // Replace with your actual API call
-      // const response = await fetch(`https://your-api.com/services?category=${category}`);
-      // const data = await response.json();
-      // return data;
-      
-      // For now, filter mock data
-      if (category === 'all') {
-        return services;
-      }
-      return services.filter(service => service.status === category);
-    } catch (error) {
-      console.error(`Error fetching ${category} services:`, error);
-      throw error;
-    }
-  },
-
-  // Search services
-  searchServices: async (query: string, category: 'all' | 'booked' | 'saved'): Promise<ServiceItem[]> => {
-    try {
-      // Replace with your actual API call
-      // const response = await fetch(`https://your-api.com/services/search?q=${query}&category=${category}`);
-      // const data = await response.json();
-      // return data;
-
-      // For now, filter mock data
-      let filtered = services;
-      
-      if (category !== 'all') {
-        filtered = filtered.filter(service => service.status === category);
-      }
-      
-      if (query.trim() !== '') {
-        const q = query.toLowerCase();
-        filtered = filtered.filter(service => 
-          service.title.toLowerCase().includes(q) || 
-          service.description.toLowerCase().includes(q) ||
-          service.userName.toLowerCase().includes(q) ||
-          (service.category && service.category.toLowerCase().includes(q))
-        );
-      }
-      
-      return filtered;
-    } catch (error) {
-      console.error('Error searching services:', error);
-      throw error;
-    }
-  },
-
-  // Book a service
-  bookService: async (serviceId: string): Promise<boolean> => {
-    try {
-      // Mock success
-      console.log(`Service booked: ${serviceId}`);
-      return true;
-    } catch (error) {
-      console.error(`Error booking service ${serviceId}:`, error);
-      throw error;
-    }
-  },
-
-  // Save a service
-  saveService: async (serviceId: string): Promise<boolean> => {
-    try {
-      // Mock success
-      console.log(`Service saved: ${serviceId}`);
-      return true;
-    } catch (error) {
-      console.error(`Error saving service ${serviceId}:`, error);
-      throw error;
-    }
-  },
-
-  // Unbook a service
-  unbookService: async (serviceId: string): Promise<boolean> => {
-    try {
-      // Mock success
-      console.log(`Service unbooked: ${serviceId}`);
-      return true;
-    } catch (error) {
-      console.error(`Error unbooking service ${serviceId}:`, error);
-      throw error;
-    }
-  },
-
-  // Unsave a service
-  unsaveService: async (serviceId: string): Promise<boolean> => {
-    try {
-      // Mock success
-      console.log(`Service unsaved: ${serviceId}`);
-      return true;
-    } catch (error) {
-      console.error(`Error unsaving service ${serviceId}:`, error);
-      throw error;
+// Mapper function to convert UserService (API) to ServiceItem (UI)
+const mapUserServiceToServiceItem = (service: UserService): ServiceItem => {
+  // Ensure time_availability is always a stringified JSON
+  let timeAvailabilityString: string | undefined;
+  if (service.time_availability) {
+    if (typeof service.time_availability === 'string') {
+      timeAvailabilityString = service.time_availability;
+    } else {
+      // If it's an object, stringify it
+      timeAvailabilityString = JSON.stringify(service.time_availability);
     }
   }
+
+  return {
+    id: service.id,
+    userId: service.user_id,
+    userImage: service.user_image || '',
+    userName: service.user_name,
+    title: service.title,
+    description: service.description,
+    price: parseFloat(service.price) || 0,
+    rating: service.rating || 0,
+    ratingCount: service.rating_count || 0,
+    duration: service.duration || 30,
+    modality: service.modality || 'online',
+    tags: service.tags || [],
+    category: service.category,
+    imageUrl: service.image_url,
+    status: 'all',
+    isBooked: service.is_booked === 'true' || false,
+    isSaved: service.is_saved === 'true' || false,
+    timeAvailability: timeAvailabilityString,
+  };
 };
 
 const Services = () => {
@@ -202,9 +121,21 @@ const Services = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiService.getServices();
-      setServices(data);
-      setFilteredServices(data);
+      
+      const response = await ServicesRepository.listServices();
+      if (response && response.data) {
+        console.log("antes de service items")
+        const serviceItems = Array.isArray(response.data) 
+          ? response.data.map(mapUserServiceToServiceItem)
+          : [];
+        
+          console.log(serviceItems)
+        
+        setServices(serviceItems);
+        setFilteredServices(serviceItems);
+      } else {
+        setError('Failed to load services');
+      }
     } catch (err) {
       setError('Failed to load services');
       console.error(err);
@@ -218,14 +149,13 @@ const Services = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiService.getServicesByCategory(category);
-      setServices(data);
-      setFilteredServices(data);
+      
+      const response = await ServicesRepository.listServices();
+      console.log(response);
+      
     } catch (err) {
-      setError(`Failed to load ${category} services`);
+      setError('Failed to load services');
       console.error(err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -234,8 +164,39 @@ const Services = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiService.searchServices(query, category);
-      setFilteredServices(data);
+      
+      // No direct search API, so fetch all and filter client-side
+      const response = await ServicesRepository.listServices();
+      
+      if (response && response.data) {
+        let serviceItems = Array.isArray(response.data)
+          ? response.data.map(mapUserServiceToServiceItem)
+          : [];
+        
+        // Filter by category if necessary
+        if (category !== 'all') {
+          serviceItems = serviceItems.filter(service => {
+            if (category === 'booked') return service.isBooked;
+            if (category === 'saved') return service.isSaved;
+            return true;
+          });
+        }
+        
+        // Filter by search query
+        if (query.trim() !== '') {
+          const q = query.toLowerCase();
+          serviceItems = serviceItems.filter(service => 
+            service.title.toLowerCase().includes(q) || 
+            service.description.toLowerCase().includes(q) ||
+            service.userName.toLowerCase().includes(q) ||
+            (service.category && service.category.toLowerCase().includes(q))
+          );
+        }
+        
+        setFilteredServices(serviceItems);
+      } else {
+        setError('Search failed');
+      }
     } catch (err) {
       setError('Search failed');
       console.error(err);
@@ -244,20 +205,20 @@ const Services = () => {
     }
   };
 
-  // Toggle booking status
+  // Toggle booking status (register/unregister)
   const toggleBooking = async (serviceId: string, isCurrentlyBooked: boolean) => {
     try {
       setBookingInProgress(serviceId);
       
-      let success: boolean;
+      let response;
       
       if (isCurrentlyBooked) {
-        success = await apiService.unbookService(serviceId);
+        response = await ServicesRepository.unregisterFromService(serviceId);
       } else {
-        success = await apiService.bookService(serviceId);
+        response = await ServicesRepository.registerForService(serviceId);
       }
       
-      if (success) {
+      if (response && response.status >= 200 && response.status < 300) {
         // Update local state to reflect the change
         const updatedServices = services.map(service => 
           service.id === serviceId 
@@ -275,6 +236,9 @@ const Services = () => {
         );
         
         setFilteredServices(updatedFilteredServices);
+      } else {
+        // Show an error toast or notification here
+        console.error('Failed to update booking status');
       }
     } catch (err) {
       console.error('Error toggling booking status:', err);
@@ -285,37 +249,33 @@ const Services = () => {
   };
 
   // Toggle saved status
+  // Note: The API doesn't currently have a "save" feature, so this is a placeholder
+  // In a real implementation, you would use an API endpoint for this
   const toggleSaved = async (serviceId: string, isCurrentlySaved: boolean) => {
     try {
       setSavingInProgress(serviceId);
       
-      let success: boolean;
+      // This is a placeholder until the API supports saving services
+      // For now, we'll just update the UI state
       
-      if (isCurrentlySaved) {
-        success = await apiService.unsaveService(serviceId);
-      } else {
-        success = await apiService.saveService(serviceId);
-      }
+      // Update local state to reflect the change
+      const updatedServices = services.map(service => 
+        service.id === serviceId 
+          ? { ...service, isSaved: !isCurrentlySaved } 
+          : service
+      );
       
-      if (success) {
-        // Update local state to reflect the change
-        const updatedServices = services.map(service => 
-          service.id === serviceId 
-            ? { ...service, isSaved: !isCurrentlySaved } 
-            : service
-        );
-        
-        setServices(updatedServices);
-        
-        // Update filtered services too
-        const updatedFilteredServices = filteredServices.map(service => 
-          service.id === serviceId 
-            ? { ...service, isSaved: !isCurrentlySaved } 
-            : service
-        );
-        
-        setFilteredServices(updatedFilteredServices);
-      }
+      setServices(updatedServices);
+      
+      // Update filtered services too
+      const updatedFilteredServices = filteredServices.map(service => 
+        service.id === serviceId 
+          ? { ...service, isSaved: !isCurrentlySaved } 
+          : service
+      );
+      
+      setFilteredServices(updatedFilteredServices);
+      
     } catch (err) {
       console.error('Error toggling saved status:', err);
       // Show an error message to the user
@@ -410,7 +370,7 @@ const Services = () => {
     setIsAddModalVisible(true);
   };
   
-  // Add this new function to handle service creation:
+  // Handle service creation with the real API
   const handleServiceSubmit = async (serviceData: {
     title: string;
     description: string;
@@ -423,39 +383,38 @@ const Services = () => {
     try {
       console.log('Creating new service:', serviceData);
       
-      // In a real app, you'd upload the image first if it exists
-      // Then create the service with the returned image URL
-      
-      // For now, let's create a mock service entry
-      const newService: ServiceItem = {
-        id: `service${Date.now()}`, // Generate a temporary ID
-        userId: 'current-user-id', // In a real app, get from auth context
-        userImage: 'https://randomuser.me/api/portraits/men/1.jpg', // User's profile image
-        userName: 'Current User', // In a real app, get from auth context
+      // Prepare data for the API
+      const apiServiceData = {
         title: serviceData.title,
         description: serviceData.description,
         price: serviceData.price,
-        rating: 0, // New services start with no ratings
-        ratingCount: 0,
         duration: serviceData.duration,
         modality: serviceData.modality,
         category: serviceData.category,
-        tags: [], // Tags can be added later
-        imageUrl: serviceData.imageUri, // In a real app, this would be the uploaded image URL
-        status: 'all',
-        isBooked: false,
-        isSaved: false
+        tags: [] as string[], // Tags can be added later
       };
       
-      // In a real app, you'd call your API here
-      // const response = await apiService.createService(newService);
+      // In a real app, you'd handle image upload separately
+      // and attach the image URL to the service
       
-      // For now, add to our mock data and state
-      setServices([newService, ...services]);
-      setFilteredServices([newService, ...filteredServices]);
+      // Call the API to create the service
+      const response = await ServicesRepository.create(apiServiceData);
       
-      // Show success message
-      console.log('Service created successfully!');
+      if (response && response.data) {
+        // Convert the API response to a ServiceItem
+        const newService = mapUserServiceToServiceItem(response.data);
+        
+        // Add to our local state
+        setServices([newService, ...services]);
+        setFilteredServices([newService, ...filteredServices]);
+        
+        // Show success message
+        console.log('Service created successfully!');
+        // No return value needed
+      } else {
+        console.error('Failed to create service: Invalid API response');
+        throw new Error('Failed to create service');
+      }
       
     } catch (error) {
       console.error('Failed to create service:', error);
@@ -496,6 +455,16 @@ const Services = () => {
             paddingHorizontal: 8,
           }}
         >
+          {/* Add button inside the services container */}
+          {!isAddModalVisible && (
+            <SquareAddButton
+              onPress={handleCreateNewService}
+              color={ACCENT_COLOR}
+              size={60}
+              iconSize={32}
+            />
+          )}
+
           <FlatList
             data={filteredServices}
             renderItem={renderServiceCard}
@@ -531,20 +500,14 @@ const Services = () => {
         </View>
       )}
 
-      {/* Add a + square for adding new ServicesCard*/}
-      <SquareAddButton
-        onPress={handleCreateNewService}
-        color={ACCENT_COLOR}
-        size={60}
-        iconSize={32}
-      />
-
-      {/* Service Add Modal */}
-      <ServiceAddModal
-        visible={isAddModalVisible}
-        onClose={() => setIsAddModalVisible(false)}
-        onSubmit={handleServiceSubmit}
-      />  
+      {/* Modal for creating new service */}
+      {isAddModalVisible && (
+        <CreateServiceForm
+          visible={isAddModalVisible}
+          onServiceCreated={() => setIsAddModalVisible(false)}
+          onCancel={() => setIsAddModalVisible(false)}
+        />
+      )}
     </SafeAreaView>
   );
 };

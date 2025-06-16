@@ -21,8 +21,8 @@ const mockPosts = [
   {
     id: 'post1',
     userId: 'user123',
-    userName: 'Alex Johnson',
-    userImage: 'https://randomuser.me/api/portraits/men/32.jpg',
+    userName: 'switchera',
+    userImage: 'assets/images/default-profile.png',
     title: 'Aprendiendo React Native',
     categories: ['Programación', 'Móvil'],
     description: '¡Acabo de terminar mi primera app en React Native! El camino fue desafiante pero muy gratificante. Comparto algunos aprendizajes y consejos para principiantes.',
