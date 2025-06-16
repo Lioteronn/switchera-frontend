@@ -12,7 +12,9 @@ interface User {
   email?: string;
   first_name?: string;
   last_name?: string;
+
 }
+
 interface AuthContextType {
   isAuthenticated: boolean;
   tokens: AuthTokens | null;
@@ -21,6 +23,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   isLoading: boolean;
   user: User | null;
+
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

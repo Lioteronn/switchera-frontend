@@ -18,7 +18,13 @@ const SimpleAuthHeader = () => {
         <View style={styles.statusInfo}>
           <Wifi size={14} color="#10b981" />
           <Text style={styles.statusText}>
-            Conectado como {user?.username || 'Usuario'}
+            Conectado como {user?.username || 'Usuario'} 
+          </Text>
+          <Text style={styles.statusText}>
+            {user?.email || 'Email Desconocido'}
+          </Text>
+          <Text style={styles.statusText}>
+            {user?.id || 'ID Desconocido'}
           </Text>
         </View>
         

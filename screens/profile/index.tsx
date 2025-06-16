@@ -6,7 +6,6 @@ import { ActivityIndicator, Alert, RefreshControl, SafeAreaView, ScrollView, Sty
 
 import FriendsListCompact from '@/components/profilePage/FriendsListCompact';
 
-import { FriendsRepository } from '@/api/friendsRepository';
 import { profileApi } from '@/api/profile';
 import { useAuth } from '@/context/AuthContext';
 import { Friend } from '@/types/profile';
@@ -52,7 +51,7 @@ export default function ProfileScreen() {
       // Fetch additional data in parallel
       const [badgesData, friendsData, servicesData, registrationsData] = await Promise.all([
         profileApi.getBadges(),
-        FriendsRepository.getFriends(),
+        profileApi.getFriends ? profileApi.getFriends() : Promise.resolve([]), 
         profileApi.getServices(),
         profileApi.getRegisteredServices()
       ]);

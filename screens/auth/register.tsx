@@ -19,8 +19,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const Register = () => {
   const [username, setUsername] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [first_name, setFirstName] = useState('');
+  const [last_name, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -30,7 +30,7 @@ const Register = () => {
   const { register, isLoading } = useAuth();
 
   const handleRegister = async () => {
-    if (!username || !firstName || !lastName || !email || !password) {
+    if (!username || !first_name || !last_name || !email || !password) {
       setError('Please fill in all fields');
       return;
     }
@@ -44,16 +44,16 @@ const Register = () => {
       setError('');
       console.log(' Attempting registration with data:', {
         username,
-        firstName,
-        lastName,
+        first_name,
+        last_name,
         email
       });
 
       console.log(' Sending API request to /users/register/');
       const response = await axiosInstance.post('/users/register/', {
         username,
-        firstName,
-        lastName,
+        first_name,
+        last_name,
         email,
         password
       });
@@ -109,7 +109,7 @@ const Register = () => {
             <TextInput
               style={styles.input}
               placeholder="First Name"
-              value={firstName}
+              value={first_name}
               onChangeText={(text) => {
                 setFirstName(text);
                 setError('');
@@ -125,7 +125,7 @@ const Register = () => {
             <TextInput
               style={styles.input}
               placeholder="Last Name"
-              value={lastName}
+              value={last_name}
               onChangeText={(text) => {
                 setLastName(text);
                 setError('');
