@@ -6,12 +6,12 @@ import { ActivityIndicator, Alert, RefreshControl, SafeAreaView, ScrollView, Sty
 
 import FriendsListCompact from '@/components/profilePage/FriendsListCompact';
 
-import { profileApi } from '@/api/profile';
+import { supabaseProfileRepository } from '@/api/supabaseProfileRepository';
 import { useAuth } from '@/context/AuthContext';
 import { Friend } from '@/types/profile';
-import { useRouter } from 'expo-router';
+import { getUserAuthStatus } from '@/utils/supabase';
 import { AlertCircle, ChevronRight, LogOut, User } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 // Constants for responsive design
 const MAX_CONTENT_WIDTH = 1200;
@@ -20,82 +20,73 @@ export default function ProfileScreen() {
   // Get device dimensions to adapt layout
   const { width } = useWindowDimensions();
   const isDesktop = width > 768;
-  const router = useRouter();
 
-  const { logout, user, isAuthenticated } = useAuth();
+  const { logout, isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profileData, setProfileData] = useState<any>(null);
   const [badges, setBadges] = useState([]);
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [services, setServices] = useState([]);
-  const [registeredServices, setRegisteredServices] = useState([]);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-
-  const fetchAllProfileData = async () => {
+  const [refreshing, setRefreshing] = useState(false);  const fetchAllProfileData = useCallback(async () => {
     setLoading(true);
     setError(null);
     
     try {
-      // Fetch user profile
-      const profile = await profileApi.getMyProfile();
+      // Get user ID from auth status (JWT token)
+      const authStatus = await getUserAuthStatus();
+      console.log('🔑 Auth status:', authStatus);
+      
+      if (!authStatus.isAuthenticated || !authStatus.userId || authStatus.userId === 0) {
+        throw new Error('No valid user ID available. Please log in again.');
+      }
+
+      // Fetch profile from Supabase
+      console.log('📡 Fetching profile for user ID:', authStatus.userId);
+      const profile = await supabaseProfileRepository.getProfileByUserId(authStatus.userId);
+      console.log('✅ Profile data fetched:', profile);
       setProfileData(profile);
       
-      if (!profile.bio) {
-        setShowOnboarding(true);
-        setLoading(false);
-        return;
-      }
+      // For now, set empty arrays for badges and friends (can be implemented later)
+      setBadges([]);
+      setFriends([]);
       
-      // Fetch additional data in parallel
-      const [badgesData, friendsData, servicesData, registrationsData] = await Promise.all([
-        profileApi.getBadges(),
-        profileApi.getFriends ? profileApi.getFriends() : Promise.resolve([]), 
-        profileApi.getServices(),
-        profileApi.getRegisteredServices()
-      ]);
-      
-      setBadges(badgesData);
-      setFriends(
-        (Array.isArray(friendsData) ? friendsData : (friendsData?.data ?? []))
-          .map((friend: any) => ({
-            ...friend,
-            image: friend.image === null ? undefined : friend.image,
-          }))
-      );
-      setServices(servicesData);
-      setRegisteredServices(registrationsData);
     } catch (err) {
       console.error('Error fetching profile data:', err);
       setError('Failed to load profile data. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
   
   const handleRefresh = async () => {
     setRefreshing(true);
     await fetchAllProfileData();
     setRefreshing(false);
-  };
-  
-  const handleOnboardingComplete = async (data: any) => {
+  };  const handleOnboardingComplete = async (data: any) => {
     try {
-      await profileApi.updateProfile(data);
-      setShowOnboarding(false);
+      // Get user ID from JWT token
+      const authStatus = await getUserAuthStatus();
+      
+      if (!authStatus.userId) {
+        throw new Error('User ID not found - cannot update profile');
+      }
+      
+      // Use Supabase repository for profile updates
+      await supabaseProfileRepository.updateProfile(authStatus.userId, data);
+      console.log('✅ Profile updated successfully via Supabase');
+      
+      // Refresh profile data after successful update
       await fetchAllProfileData();
+      
     } catch (err) {
-      console.error('Error completing onboarding:', err);
+      console.error('❌ Error completing onboarding:', err);
       Alert.alert('Error', 'Failed to save profile data. Please try again.');
     }
-  };
-
-  useEffect(() => {
-    if (isAuthenticated && user) {
+  };  useEffect(() => {
+    if (isAuthenticated) {
       fetchAllProfileData();
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, fetchAllProfileData]);
 
   const handleLogout = async () => {
     Alert.alert(
@@ -120,10 +111,9 @@ export default function ProfileScreen() {
       ],
       { cancelable: true }
     );
-  };
-
-  const userId = user?.id ? String(user.id) : '';
-  const currentUserId = user?.id ? String(user.id) : '';
+  };  // Simple user ID - we'll get it from profile data when loaded
+  const userId = profileData?.user_id ? String(profileData.user_id) : '';
+  const currentUserId = userId;
 
   const styles = StyleSheet.create({
     container: {
@@ -389,10 +379,13 @@ export default function ProfileScreen() {
                       friend.id === id ? { ...friend, blocked: false } : friend
                     ));
                   }}
-                />
-                <TouchableOpacity 
+                />                <TouchableOpacity 
                   style={styles.viewAllButton}
-                  onPress={() => router.push('/(tabs)/profile/friends')}
+                  onPress={() => {
+                    // TODO: Fix navigation path
+                    // router.push('/(tabs)/profile/friends')
+                    console.log('Navigate to friends page');
+                  }}
                 >
                   <Text style={styles.viewAllText}>View All Friends</Text>
                   <ChevronRight size={16} color="#3B82F6" />

@@ -1,14 +1,44 @@
 // api/profile.ts
 import axiosInstance from './axiosInstance';
+import { ProfileUpdateData, supabaseProfileRepository } from './supabaseProfileRepository';
 
 export const profileApi = {
-  // Get current user's profile with all data
+  // Get current user's profile with all data (try Supabase first, fallback to Django)
   getMyProfile: async () => {
     try {
+      // Try Supabase first
+      const supabaseProfile = await supabaseProfileRepository.getMyProfile();
+      if (supabaseProfile) {
+        return {
+          ...supabaseProfile,
+          username: supabaseProfile.auth_user?.username,
+          email: supabaseProfile.auth_user?.email,
+          first_name: supabaseProfile.auth_user?.first_name,
+          last_name: supabaseProfile.auth_user?.last_name,
+          image: supabaseProfile.profile_picture,
+        };
+      }
+    } catch (supabaseError) {
+      console.log('Supabase profile fetch failed, trying Django API:', supabaseError);
+    }
+    
+    try {
+      // Fallback to Django API
       const response = await axiosInstance.get('/users/profiles/me/');
       return response.data;
     } catch (error) {
       console.error('Error fetching profile:', error);
+      throw error;
+    }
+  },
+
+  // Update profile using Supabase
+  updateProfileSupabase: async (userId: number, data: ProfileUpdateData) => {
+    try {
+      await supabaseProfileRepository.updateProfile(userId, data);
+      return await supabaseProfileRepository.getProfileByUserId(userId);
+    } catch (error) {
+      console.error('Error updating profile with Supabase:', error);
       throw error;
     }
   },
