@@ -14,7 +14,7 @@ interface Comment {
 interface CommentSectionProps {
   postId: string;
   comments: Comment[];
-  onAddComment: (postId: string, text: string) => void;
+  onAddComment: (text: string) => void;
 }
 
 const CommentSection: React.FC<CommentSectionProps> = ({ postId, comments, onAddComment }) => {
@@ -22,7 +22,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, comments, onAdd
 
   const handleSendComment = () => {
     if (commentText.trim()) {
-      onAddComment(postId, commentText);
+      onAddComment(commentText);
       setCommentText('');
     }
   };

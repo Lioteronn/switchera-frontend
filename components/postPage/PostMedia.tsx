@@ -13,13 +13,16 @@ const imageWidth = Math.round(width * 1);
 const PostMedia: React.FC<PostMediaProps> = ({ photos, onImageSize }) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
-    const [aspectRatio, setAspectRatio] = useState<number | undefined>(1);
-
-    useEffect(() => {
+    const [aspectRatio, setAspectRatio] = useState<number | undefined>(1);    useEffect(() => {
         if (photos.length > 0) {
+            console.log('🖼️ Loading image with URI:', photos[0]);
             Image.getSize(photos[0], (w, h) => {
+                console.log('✅ Image size retrieved:', { width: w, height: h });
                 if (onImageSize) onImageSize(w, h);
                 setAspectRatio(w / h);
+            }, (error) => {
+                console.error('❌ Error getting image size:', error);
+                console.error('❌ Failed image URI:', photos[0]);
             });
         }
     }, [photos, onImageSize]);
@@ -40,12 +43,18 @@ const PostMedia: React.FC<PostMediaProps> = ({ photos, onImageSize }) => {
 
     const renderPhotos = () => {
         if (photos.length === 1) {
-            return (
-                <TouchableOpacity onPress={() => openModal(photos[0])} style={styles.singlePhotoContainer}>
+            return (                <TouchableOpacity onPress={() => openModal(photos[0])} style={styles.singlePhotoContainer}>
                     <Image
                         source={{ uri: photos[0] }}
                         style={[styles.singlePhoto, aspectRatio ? { aspectRatio } : {}]}
                         resizeMode="cover"
+                        onError={(error) => {
+                            console.error('❌ Image load error:', error.nativeEvent.error);
+                            console.error('❌ Failed to load image URI:', photos[0]);
+                        }}
+                        onLoad={() => {
+                            console.log('✅ Image loaded successfully:', photos[0]);
+                        }}
                     />
                 </TouchableOpacity>
             );

@@ -1,242 +1,160 @@
+import { postRepository } from '@/api/postRepository'; // Changed to named import
 import CreatePostModal from '@/components/postPage/CreatePostModal';
-import PostCard from '@/components/postPage/PostCard';
 import PostFilter from '@/components/postPage/PostFilter';
-import { getSavedPosts } from '@/components/postPage/PostUtils';
 import SquareAddButton from '@/components/servicePage/SquareAddButton';
-import React, { useEffect, useState } from 'react';
-import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useAuth } from '@/context/AuthContext';
+import { getUserAuthStatus } from '@/utils/supabase'; // Add this import
+import React, { useState } from 'react';
+import { Alert, SafeAreaView, StyleSheet, View } from 'react-native';
 
+// Import category screens
+import AllPostsScreen from './categories/AllPostsScreen';
+import FollowedPostsScreen from './categories/FollowedPostsScreen';
+import SavedPostsScreen from './categories/SavedPostsScreen';
 
-
-// Constants for responsive design
-const MAX_CONTENT_WIDTH = 1200; // Wider desktop layout
-const MOBILE_CARD_WIDTH = 500;
-const ACCENT_COLOR = '#84cc16'; // Yellowish green accent color
-const SCREEN_HEIGHT = Dimensions.get('window').height;
-
-
-
-// Datos simulados para publicaciones
-const mockPosts = [
-  {
-    id: 'post1',
-    userId: 'user123',
-    userName: 'switchera',
-    userImage: 'assets/images/default-profile.png',
-    title: 'Aprendiendo React Native',
-    categories: ['Programación', 'Móvil'],
-    description: '¡Acabo de terminar mi primera app en React Native! El camino fue desafiante pero muy gratificante. Comparto algunos aprendizajes y consejos para principiantes.',
-    photos: ['https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c'],
-    likes: 24,
-    comments: 5
-  },
-  {
-    id: 'post2',
-    userId: 'user456',
-    userName: 'Maria Garcia',
-    userImage: null,
-    title: 'Photography Tips for Beginners',
-    categories: ['Photography', 'Art'],
-    description: 'Here are some essential photography tips I learned over the years. Proper lighting makes all the difference!',
-    photos: [
-      'https://images.unsplash.com/photo-1554080353-a576cf803bda',
-      'https://images.unsplash.com/photo-1552168324-d612d77725e3'
-    ],
-    likes: 42,
-    comments: 8
-  },
-  {
-    id: 'post3',
-    userId: 'user789',
-    userName: 'John Smith',
-    userImage: 'https://randomuser.me/api/portraits/men/65.jpg',
-    title: 'My Travel Adventures',
-    categories: ['Travel', 'Lifestyle'],
-    description: 'Sharing some amazing moments from my trip around Europe. Visit these places if you get a chance!',
-    photos: [
-      'https://images.unsplash.com/photo-1513581166391-887a96ddeafd',
-      'https://images.unsplash.com/photo-1528127269322-539801943592',
-      'https://images.unsplash.com/photo-1512453979798-5ea266f8880c',
-    ],
-    likes: 78,
-    comments: 15
-  }
-];
-
-// Mock followed users
-const followedUsers = ['user123'];
+export type PostTabType = 'all' | 'followed' | 'saved';
 
 const PostScreen = () => {
-
-  const { width} = Dimensions.get('window');
-  const isDesktop = width > MAX_CONTENT_WIDTH;
-
-  const [posts, setPosts] = useState(mockPosts);
-  const [filteredPosts, setFilteredPosts] = useState(mockPosts);
-  const [activeTab, setActiveTab] = useState<'all' | 'followed' | 'saved'>('all');
+  const [activeTab, setActiveTab] = useState<PostTabType>('all');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [refreshKeyAllPosts, setRefreshKeyAllPosts] = useState(0);
 
-  // Function to handle creating a new post
-  type Post = typeof mockPosts[number];
+  const { user, isAuthenticated, isLoading } = useAuth();
 
-  // Function to filter posts based on tab and search term
-  useEffect(() => {
-    filterPosts(activeTab, searchTerm);
-  }, [activeTab, searchTerm, posts]);
+  // Debug logging for auth state
+  console.log('🔍 PostScreen auth state:', {
+    user,
+    isAuthenticated,
+    isLoading,
+    userId: user?.id
+  });
 
-  const filterPosts = async (tab: 'all' | 'followed' | 'saved', search: string) => {
-    let filtered = [...posts];
-    
-    // Filter by tab
-    if (tab === 'followed') {
-      filtered = filtered.filter(post => followedUsers.includes(post.userId));
-    } else if (tab === 'saved') {
-      const savedPostIds = await getSavedPosts();
-      filtered = filtered.filter(post => savedPostIds.includes(post.id));
-    }
-    
-    // Filter by search term
-    if (search) {
-      const searchLower = search.toLowerCase();
-      filtered = filtered.filter(post => 
-        post.title.toLowerCase().includes(searchLower) ||
-        post.description.toLowerCase().includes(searchLower) ||
-        post.categories.some(cat => cat.toLowerCase().includes(searchLower)) ||
-        post.userName.toLowerCase().includes(searchLower)
-      );
-    }
-    
-    setFilteredPosts(filtered);
-  };
-
-  const handleTabChange = (tab: 'all' | 'followed' | 'saved') => {
+  const handleTabChange = (tab: PostTabType) => {
     setActiveTab(tab);
   };
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
+  };  // Adjusted newPostData.image type to match CreatePostModal's onSubmit prop
+  const handleCreatePost = async (newPostData: { title: string; content: string; image?: string | null; imageUri?: string | null }) => {
+    console.log('🔍 handleCreatePost called with user:', user);
+    console.log('🔍 User ID available:', user?.id);
+    console.log('🔍 User object full:', JSON.stringify(user, null, 2));
+    
+    // First check AuthContext user
+    if (!user || !user.id) {
+      console.log('🔍 AuthContext user not available, checking getUserAuthStatus...');
+      
+      // Fallback: check getUserAuthStatus directly
+      try {
+        const authStatus = await getUserAuthStatus();
+        console.log('🔍 getUserAuthStatus result:', authStatus);
+        
+        if (!authStatus.isAuthenticated || !authStatus.userId) {
+          Alert.alert('Error', 'You must be logged in to create a post.');
+          console.error('User not authenticated for creating post', { 
+            contextUser: user, 
+            contextUserId: user?.id,
+            authStatus 
+          });
+          return;
+        }
+        
+        console.log('✅ User authenticated via getUserAuthStatus, proceeding...');
+      } catch (authError) {
+        console.error('❌ Error checking auth status:', authError);
+        Alert.alert('Error', 'Authentication check failed. Please try logging in again.');
+        return;
+      }
+    }
+
+    try {
+      setIsModalVisible(false);
+      
+      // First upload the image if it exists
+      let finalImageUrl = null;
+      if (newPostData.imageUri) {
+        try {
+          const imageUploadResult = await postRepository.uploadImage(newPostData.imageUri, newPostData.title);
+          finalImageUrl = imageUploadResult.url;
+          console.log('Image uploaded successfully:', finalImageUrl);
+        } catch (imageError) {
+          console.error('Failed to upload image:', imageError);
+          Alert.alert('Warning', 'Failed to upload image, but proceeding with post creation.');
+        }
+      }
+
+      const createdPost = await postRepository.createPost({
+        title: newPostData.title,
+        content: newPostData.content,
+        image: finalImageUrl || newPostData.image || null,
+        userId: user?.id || (await getUserAuthStatus()).userId, // Ensure userId is included
+        imageUri: null, // We don't need to store the local URI
+      });
+
+      console.log('Post created successfully in DB:', createdPost);
+
+      if (activeTab !== 'all') {
+        setActiveTab('all');
+      }
+      setRefreshKeyAllPosts(prevKey => prevKey + 1);
+
+    } catch (error) {
+      console.error('Failed to create post:', error);
+      Alert.alert('Error', 'Failed to create post. Please try again.');
+    }
   };
 
-  const handleCreatePost = (newPost: Post) => {
-    setPosts([newPost, ...posts]);
-    setIsModalVisible(false);
+  const renderActiveScreen = () => {
+    switch (activeTab) {
+      case 'all':
+        return <AllPostsScreen searchTerm={searchTerm} key={`all-${searchTerm}-${refreshKeyAllPosts}`} />;
+      case 'followed':
+        return <FollowedPostsScreen searchTerm={searchTerm} key={`followed-${searchTerm}`} />;
+      case 'saved':
+        // Removed searchTerm prop as SavedPostsScreen might not use it directly
+        // If client-side filtering is needed, it can be added within SavedPostsScreen itself
+        return <SavedPostsScreen key={`saved-${searchTerm}`} />;
+      default:
+        return null;
+    }
   };
 
   return (
-    <SafeAreaView style={styles.outerContainer}>
+    <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-      <PostFilter  
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-        onSearch={handleSearch}
-      />
-
-      <ScrollView style={styles.scrollView}>
-        {filteredPosts.length > 0 ? (
-          filteredPosts.map((post) => (
-            <View key={post.id} style={styles.cardContainer}>
-              <PostCard 
-                postId={post.id}
-                userId={post.userId}
-                userName={post.userName}
-                userImage={post.userImage}
-                title={post.title}
-                categories={post.categories}
-                description={post.description}
-                photos={post.photos}
-                initialLikes={post.likes}
-                initialComments={post.comments}
-              />
-            </View>
-          ))
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              {activeTab === 'all' ? 
-                'No posts found. Try a different search term.' : 
-                activeTab === 'followed' ? 
-                  'No posts from followed users. Try following someone!' : 
-                  'No saved posts yet. Save posts to see them here!'}
-            </Text>
-          </View>
+        <PostFilter onTabChange={handleTabChange} onSearch={handleSearch} activeTab={activeTab} />
+        <View style={styles.contentContainer}>
+          {renderActiveScreen()}
+        </View>
+        <SquareAddButton onPress={() => setIsModalVisible(true)} />
+        {isModalVisible && (
+          <CreatePostModal
+            visible={isModalVisible} // Corrected from isVisible to visible
+            onClose={() => setIsModalVisible(false)}
+            onSubmit={handleCreatePost} // This should now be compatible
+          />
         )}
-      </ScrollView>
-
-      <SquareAddButton
-        onPress={() => setIsModalVisible(true)}
-        color={ACCENT_COLOR}
-        size={60}
-        iconSize={32}
-      />
-
-      {/* Create Post Modal */}
-      <CreatePostModal
-        visible={isModalVisible}
-        onClose={() => setIsModalVisible(false)}
-        onSubmit={handleCreatePost}
-      />
-
-
-      {isModalVisible && (
-        <CreatePostModal 
-          visible={isModalVisible} 
-          onClose={() => setIsModalVisible(false)}
-          onSubmit={handleCreatePost}
-        />
-      )}
       </View>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  outerContainer: {
+  safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#fff', 
   },
-  
   container: {
     flex: 1,
-    width: '100%',
-    maxWidth: MAX_CONTENT_WIDTH,
-    alignSelf: 'center',
-    backgroundColor: '#F9FAFB',
+    paddingHorizontal: 16, 
+    paddingTop: 16, 
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    backgroundColor: 'white',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  addButton: {
-    padding: 4,
-  },
-  scrollView: {
+  contentContainer: {
     flex: 1,
+    marginTop: 16, 
   },
-  cardContainer: {
-    padding: 16,
-    backgroundColor: '#f9f9f9',
-  },
-  emptyContainer: {
-    padding: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-  }
 });
 
 export default PostScreen;

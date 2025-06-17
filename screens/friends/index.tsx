@@ -8,6 +8,20 @@ import React, { useState } from 'react';
 import {
     Alert // Ensure Alert is imported
     ,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     Modal,
     SafeAreaView,
     ScrollView,
@@ -86,84 +100,98 @@ export default function FriendsScreen() {
         return null;
     }
   };
-  return (
+   return (
     <SafeAreaView style={styles.container}>
       {/* Tab Navigation */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.tabContainer}
-        contentContainerStyle={styles.tabContent}
-      >
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'friends' && styles.activeTab]}
-          onPress={() => setActiveTab('friends')}
+      <View style={styles.tabSection}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabContent}
         >
-          <Ionicons 
-            name="people" 
-            size={20} 
-            color={activeTab === 'friends' ? '#007AFF' : '#666'} 
-          />
-          <Text style={[
-            styles.tabText,
-            activeTab === 'friends' && styles.activeTabText
-          ]}>
-            Friends
-          </Text>
-        </TouchableOpacity>
           <TouchableOpacity
-          style={[styles.tab, activeTab === 'search' && styles.activeTab]}
-          onPress={() => setActiveTab('search')}
-        >
-          <Ionicons 
-            name="search" 
-            size={20} 
-            color={activeTab === 'search' ? '#007AFF' : '#666'} 
-          />
-          <Text style={[
-            styles.tabText,
-            activeTab === 'search' && styles.activeTabText
-          ]}>
-            Find People
-          </Text>
-        </TouchableOpacity>        <TouchableOpacity
-          style={[styles.tab, activeTab === 'suggestions' && styles.activeTab]}
-          onPress={() => setActiveTab('suggestions')}
-        >
-          <Ionicons 
-            name="bulb" 
-            size={20} 
-            color={activeTab === 'suggestions' ? '#007AFF' : '#666'} 
-          />
-          <Text style={[
-            styles.tabText,
-            activeTab === 'suggestions' && styles.activeTabText
-          ]}>
-            Suggestions
-          </Text>
-        </TouchableOpacity>
+            style={[styles.tab, activeTab === 'friends' && styles.activeTab]}
+            onPress={() => setActiveTab('friends')}
+          >
+            <Ionicons
+              name="people"
+              size={11}
+              color={activeTab === 'friends' ? '#007AFF' : '#666'}
+            />
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'friends' && styles.activeTabText,
+              ]}
+            >
+              Friends
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'activity' && styles.activeTab]}
-          onPress={() => setActiveTab('activity')}
-        >
-          <Ionicons 
-            name="time" 
-            size={20} 
-            color={activeTab === 'activity' ? '#007AFF' : '#666'} 
-          />
-          <Text style={[
-            styles.tabText,
-            activeTab === 'activity' && styles.activeTabText
-          ]}>
-            Activity
-          </Text>        </TouchableOpacity>
-      </ScrollView>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'search' && styles.activeTab]}
+            onPress={() => setActiveTab('search')}
+          >
+            <Ionicons
+              name="search"
+              size={11}
+              color={activeTab === 'search' ? '#007AFF' : '#666'}
+            />
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'search' && styles.activeTabText,
+              ]}
+            >
+              Find People
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeTab === 'suggestions' && styles.activeTab,
+            ]}
+            onPress={() => setActiveTab('suggestions')}
+          >
+            <Ionicons
+              name="bulb"
+              size={11}
+              color={activeTab === 'suggestions' ? '#007AFF' : '#666'}
+            />
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'suggestions' && styles.activeTabText,
+              ]}
+            >
+              Suggestions
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'activity' && styles.activeTab]}
+            onPress={() => setActiveTab('activity')}
+          >
+            <Ionicons
+              name="time"
+              size={11}
+              color={activeTab === 'activity' ? '#007AFF' : '#666'}
+            />
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'activity' && styles.activeTabText,
+              ]}
+            >
+              Activity
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
 
       {/* Tab Content */}
-      <View style={styles.content}>
-        {renderTabContent()}
-      </View>
+      <View style={styles.contentSection}>{renderTabContent()}</View>
 
       {/* Profile Modal */}
       <Modal
@@ -188,20 +216,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
-  tabContainer: {
+  tabSection: {
+    flex: 1, // 10% of screen height
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e1e5e9',
   },
+  contentSection: {
+    flex: 9, // 90% of screen height
+  },
   tabContent: {
     flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
   },
   tab: {
-    minWidth: 100,
+    minWidth: 70,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
     paddingHorizontal: 16,
     gap: 8,
   },
@@ -217,8 +250,5 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#007AFF',
     fontWeight: '600',
-  },
-  content: {
-    flex: 1,
   },
 });

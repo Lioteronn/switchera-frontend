@@ -449,40 +449,90 @@ export class SupabaseProfileRepository {    /**
 
         console.log('✅ Services count fetched:', count);
         return count || 0;
-    }
-
-    /**
+    }    /**
      * Book a service (insert a booking row)
      */
     async bookService(serviceId: string) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('Not authenticated');
-        const { error, data } = await supabase
-            .from('service_bookings')
-            .insert([{ service_id: serviceId, user_id: user.id }])
+        console.log('🎯 Booking service:', serviceId);
+        
+        // Get authentication status from AsyncStorage (Django auth, not Supabase auth)
+        const authStatus = await getUserAuthStatus();
+        if (!authStatus.isAuthenticated || !authStatus.userId) {
+            throw new Error('User not authenticated or user ID not found');
+        }
+        
+        console.log('✅ User authenticated, user ID:', authStatus.userId);
+        
+        // Use regular supabase client since we're not using Supabase auth
+        const client = supabase;
+        
+        const bookingData = {
+            service_id: parseInt(serviceId), 
+            user_id: authStatus.userId,
+            status: 'pending' as const,
+            booking_created_at: new Date().toISOString()
+        };
+        
+        console.log('📝 Creating booking with data:', bookingData);
+        
+        const { error, data } = await client
+            .from('users_serviceregistration')
+            .insert([bookingData])
             .select()
             .single();
-        if (error) throw error;
+            
+        if (error) {
+            console.error('❌ Error creating booking:', error);
+            throw new Error(`Failed to create booking: ${error.message}`);
+        }
+        
+        console.log('✅ Booking created successfully:', data);
         return data;
-    }
-
-    /**
+    }    /**
      * Propose an exchange (insert an exchange proposal row)
+     * Note: service_exchanges table doesn't exist yet, so this is disabled for now
      */
     async proposeExchange(serviceId: string, offeredServiceId: string) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('Not authenticated');
-        const { error, data } = await supabase
+        console.log('🔄 Proposing exchange:', { serviceId, offeredServiceId });
+        
+        // TODO: Create service_exchanges table in Supabase first
+        throw new Error('Exchange functionality is not yet implemented - service_exchanges table not found');
+        
+        // This code will work once the table is created:
+        /*
+        // Get authentication status from AsyncStorage (Django auth, not Supabase auth)
+        const authStatus = await getUserAuthStatus();
+        if (!authStatus.isAuthenticated || !authStatus.userId) {
+            throw new Error('User not authenticated or user ID not found');
+        }
+        
+        console.log('✅ User authenticated, user ID:', authStatus.userId);
+        
+        // Use regular supabase client since we're not using Supabase auth
+        const client = supabase;
+        
+        const exchangeData = {
+            requested_service_id: parseInt(serviceId),
+            offered_service_id: parseInt(offeredServiceId),
+            proposer_user_id: authStatus.userId,
+        };
+        
+        console.log('📝 Creating exchange proposal with data:', exchangeData);
+        
+        const { error, data } = await client
             .from('service_exchanges')
-            .insert([{
-                requested_service_id: serviceId,
-                offered_service_id: offeredServiceId,
-                proposer_user_id: user.id,
-            }])
+            .insert([exchangeData])
             .select()
             .single();
-        if (error) throw error;
+            
+        if (error) {
+            console.error('❌ Error creating exchange proposal:', error);
+            throw new Error(`Failed to create exchange proposal: ${error.message}`);
+        }
+        
+        console.log('✅ Exchange proposal created successfully:', data);
         return data;
+        */
     }
 }
 

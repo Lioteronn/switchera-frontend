@@ -6,7 +6,7 @@ import { Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity
 interface CreatePostModalProps {
     visible: boolean;
     onClose: () => void;
-    onSubmit: (post: any) => void;
+    onSubmit: (postData: { title: string; content: string; image?: string | null; imageUri?: string | null }) => void; // Added imageUri
 }
 
 const CreatePostModal: React.FC<CreatePostModalProps> = ({ visible, onClose, onSubmit }) => {
@@ -14,7 +14,7 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({ visible, onClose, onS
     const [description, setDescription] = useState('');
     const [categories, setCategories] = useState<string[]>([]);
     const [categoryInput, setCategoryInput] = useState('');
-    const [photos, setPhotos] = useState<string[]>([]);
+    const [photos, setPhotos] = useState<string[]>([]); // These are local URIs from ImagePicker
     const [error, setError] = useState('');
 
     const handleAddCategory = () => {
@@ -68,25 +68,19 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({ visible, onClose, onS
             return;
         }
 
-        if (categories.length === 0) {
-            setError('Please add at least one category');
-            return;
-        }
-
-        const newPost = {
-            id: `post-${Date.now()}`,
-            userId: 'current-user', // In a real app, get from auth context
-            userName: 'Current User', // In a real app, get from auth context
-            userImage: null, // In a real app, get from auth context
-            title,
-            categories,
-            description,
-            photos,
-            likes: 0,
-            comments: 0
+        // Categories are not sent for now as they are not in the backend model
+        // if (categories.length === 0) {
+        //     setError('Please add at least one category');
+        //     return;
+        // }        // Image handling: Pass the first selected image URI for upload
+        const postDataToSubmit = {
+            title: title.trim(),
+            content: description.trim(),
+            image: null, // Will be set after upload
+            imageUri: photos.length > 0 ? photos[0] : null, // Pass the first image URI for upload
         };
 
-        onSubmit(newPost);
+        onSubmit(postDataToSubmit);
         resetForm();
     };
 

@@ -5,6 +5,7 @@ import 'react-native-reanimated';
 
 import AuthWrapper from "@/components/AuthWrapper";
 import { AuthProvider } from "@/context/AuthContext";
+import { SavedPostsProvider } from "@/context/SavedPostsContext"; // Import SavedPostsProvider
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -17,13 +18,15 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <AuthWrapper>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-      </AuthWrapper>
+      <SavedPostsProvider> {/* Wrap with SavedPostsProvider */}
+        <AuthWrapper>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="+not-found" />
+          </Stack>
+        </AuthWrapper>
+      </SavedPostsProvider>
     </AuthProvider>
   );
 }

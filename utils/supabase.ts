@@ -26,36 +26,65 @@ const decodeJWT = (token: string): { user_id?: number; userId?: number; sub?: st
 // Get user authentication status
 export const getUserAuthStatus = async (): Promise<{ isAuthenticated: boolean; userId: number | null; token: string | null }> => {
   try {
+    console.log('🔍 getUserAuthStatus - Starting auth check');
+    
     const accessToken = await AsyncStorage.getItem('accessToken');
     const userData = await AsyncStorage.getItem('userData');
     
+    console.log('🔍 getUserAuthStatus - Retrieved data:', {
+      hasAccessToken: !!accessToken,
+      hasUserData: !!userData
+    });
+    
     if (!accessToken) {
+      console.log('❌ getUserAuthStatus - No access token found');
       return { isAuthenticated: false, userId: null, token: null };
     }
     
     let userId = null;
     
-    // First try to decode the JWT token to get user ID
-    const decodedToken = decodeJWT(accessToken);
-    if (decodedToken) {
-      userId = decodedToken.user_id || decodedToken.userId || (decodedToken.sub ? parseInt(decodedToken.sub) : null);
-      console.log('✅ User ID from JWT token:', userId);
-    }
-    
-    // Fallback to stored user data if JWT doesn't have user ID
-    if (!userId && userData) {
+    // First try to get user ID from stored user data
+    if (userData) {
       try {
         const parsedUser = JSON.parse(userData);
-        userId = parsedUser.id;
-        console.log('✅ User ID from stored data:', userId);
+        // Ensure userId is a valid positive number
+        if (parsedUser.id && typeof parsedUser.id === 'number' && parsedUser.id > 0) {
+          userId = parsedUser.id;
+          console.log('✅ getUserAuthStatus - User ID from stored data:', userId);
+        } else {
+          console.warn('⚠️ getUserAuthStatus - Invalid user ID in stored data:', parsedUser.id);
+        }
       } catch (parseError) {
-        console.warn('Could not parse user data:', parseError);
+        console.warn('⚠️ getUserAuthStatus - Could not parse user data:', parseError);
       }
     }
     
-    return { isAuthenticated: true, userId, token: accessToken };
+    // If no valid user ID from stored data, try to decode the JWT token
+    if (!userId && accessToken) {
+      const decodedToken = decodeJWT(accessToken);
+      if (decodedToken) {
+        const tokenUserId = decodedToken.user_id || decodedToken.userId || (decodedToken.sub ? parseInt(decodedToken.sub) : null);
+        // Ensure token user ID is valid
+        if (tokenUserId && typeof tokenUserId === 'number' && tokenUserId > 0) {
+          userId = tokenUserId;
+          console.log('✅ getUserAuthStatus - User ID from JWT token:', userId);
+        } else {
+          console.warn('⚠️ getUserAuthStatus - Invalid user ID in token:', tokenUserId);
+        }
+      }
+    }
+    
+    // Only consider authenticated if we have a valid user ID
+    const isAuthenticated = !!userId;
+    console.log('✅ getUserAuthStatus - Final status:', {
+      isAuthenticated,
+      userId,
+      hasToken: !!accessToken
+    });
+    
+    return { isAuthenticated, userId, token: accessToken };
   } catch (error) {
-    console.error('Error checking auth status:', error);
+    console.error('❌ getUserAuthStatus - Error:', error);
     return { isAuthenticated: false, userId: null, token: null };
   }
 };

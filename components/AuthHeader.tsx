@@ -20,20 +20,18 @@ const SimpleAuthHeader = () => {
           <Text style={styles.statusText}>
             Conectado como {user?.username || 'Usuario'} 
           </Text>
-          <Text style={styles.statusText}>
-            {user?.email || 'Email Desconocido'}
-          </Text>
-          <Text style={styles.statusText}>
-            {user?.id || 'ID Desconocido'}
-          </Text>
         </View>
-        
-        <TouchableOpacity 
+          <View style={styles.statusInfo}>
+            
+          <Text style={styles.statusText}>
+            Cerrar sesion 
+          </Text>
+          <TouchableOpacity 
           style={styles.logoutButton}
-          onPress={logout}
-        >
-          <LogOut size={14} color="#64748b" />
-        </TouchableOpacity>
+          onPress={logout}>
+          <LogOut size={14} color="#64748b"  />
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );

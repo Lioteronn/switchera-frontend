@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { UserRepository } from '../api/userRepository'; // Cambiar esta importación
+import { UserRepository } from '../api/userRepository';
+import { supabase } from '../utils/supabase';
 
 interface AuthTokens {
   accessToken: string;
@@ -59,113 +60,119 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const checkAuthState = async () => {
-    console.log(' Checking auth state...');
+    console.log('🔍 AuthProvider - Checking auth state...');
     try {
-      const accessToken = await AsyncStorage.getItem('accessToken');
-      const refreshToken = await AsyncStorage.getItem('refreshToken');
-      const userData = await AsyncStorage.getItem('userData');
-      
-      console.log(' Stored auth data:', {
-        hasAccessToken: !!accessToken,
-        hasRefreshToken: !!refreshToken,
-        hasUserData: !!userData,
-        accessTokenPreview: accessToken?.substring(0, 20)
-      });
-      
-      if (accessToken && refreshToken) {
-        console.log(' Valid tokens found, authenticating user...');
-        setTokens({ accessToken, refreshToken });
-        setIsAuthenticated(true);
+        const accessToken = await AsyncStorage.getItem('accessToken');
+        const refreshToken = await AsyncStorage.getItem('refreshToken');
+        const userData = await AsyncStorage.getItem('userData');
         
-        if (userData) {
-          try {
-            const parsedUser = JSON.parse(userData);
-            setUser(parsedUser);
-            console.log(' User data loaded from storage:', {
-              id: parsedUser.id,
-              username: parsedUser.username,
-              email: parsedUser.email
-            });
-          } catch (parseError) {
-            console.error(' Error parsing user data:', parseError);
-          }
+        console.log('🔍 AuthProvider - Stored auth data:', {
+            hasAccessToken: !!accessToken,
+            hasRefreshToken: !!refreshToken,
+            hasUserData: !!userData,
+            accessTokenPreview: accessToken?.substring(0, 20)
+        });
+        
+        if (accessToken && refreshToken) {
+            console.log('🔍 AuthProvider - Valid tokens found, authenticating user...');
+            setTokens({ accessToken, refreshToken });
+            setIsAuthenticated(true);
+            
+            if (userData) {
+                try {
+                    const parsedUser = JSON.parse(userData);
+                    setUser(parsedUser);
+                    console.log('✅ AuthProvider - User data loaded:', {
+                        id: parsedUser.id,
+                        username: parsedUser.username,
+                        email: parsedUser.email
+                    });
+                } catch (parseError) {
+                    console.error('❌ AuthProvider - Error parsing user data:', parseError);
+                }
+            }
+            
+            console.log('✅ AuthProvider - User authenticated from storage');
+        } else {
+            console.log('⚠️ AuthProvider - No valid tokens in storage');
+            setIsAuthenticated(false);
+            setTokens(null);
+            setUser(null);
         }
-        
-        console.log(' User authenticated from storage');
-      } else {
-        console.log(' No valid tokens in storage');
+    } catch (error) {
+        console.error('❌ AuthProvider - Error checking auth state:', error);
         setIsAuthenticated(false);
         setTokens(null);
         setUser(null);
-      }
-    } catch (error) {
-      console.error(' Error checking auth state:', error);
-      setIsAuthenticated(false);
-      setTokens(null);
-      setUser(null);
-      await clearAuthData();
+        await clearAuthData();
     } finally {
-      setIsLoading(false);
-      console.log(' checkAuthState completed');
+        setIsLoading(false);
+        console.log('✅ AuthProvider - Auth state check completed');
     }
-  };
+};
 
   const login = async (username: string, password: string) => {
-    console.log(' login process...');
-    console.log('Login credentials:', { username, passwordLength: password.length });
+    console.log('🔍 AuthContext - Login - Starting', { username });
     setIsLoading(true);
     
     try {
-      console.log('Calling UserRepository.login...');
-      const response = await UserRepository.login(username, password);
-      
-      console.log('Login response received:', {
-        hasData: !!response?.data,
-        accessToken: response?.data?.access ? 'Present' : 'Missing',
-        refreshToken: response?.data?.refresh ? 'Present' : 'Missing'
-      });
+        console.log('🔍 AuthContext - Login - Calling UserRepository.login');
+        const response = await UserRepository.login(username, password);
+        
+        console.log('🔍 AuthContext - Login - Full response:', response?.data);
 
-      if (!response?.data?.access || !response?.data?.refresh) {
-        throw new Error('Invalid response: missing tokens');
-      }
+        if (!response?.data?.access || !response?.data?.refresh) {
+            throw new Error('Invalid response: missing tokens');
+        }
 
-      const accessToken = response.data.access;
-      const refreshToken = response.data.refresh;
-      
-      console.log('Storing tokens in AsyncStorage...');
-      await AsyncStorage.setItem('accessToken', accessToken);
-      await AsyncStorage.setItem('refreshToken', refreshToken);
-      
-      // Crear datos de usuario básicos (desde el token o datos adicionales)
-      const basicUserData = {
-        id: response.data.user_id || 0, // Si viene en la respuesta
-        username: username,
-        email: response.data.email || '', // Si viene en la respuesta
-      };
-      
-      console.log(' Storing user data:', basicUserData);
-      await AsyncStorage.setItem('userData', JSON.stringify(basicUserData));
-      
-      // Update state
-      setTokens({ accessToken, refreshToken });
-      setUser(basicUserData);
-      setIsAuthenticated(true);
-      
-      console.log(' Login completed successfully!');
-      
+        const accessToken = response.data.access;
+        const refreshToken = response.data.refresh;
+        
+        console.log('🔍 AuthContext - Login - Storing tokens');
+        await AsyncStorage.setItem('accessToken', accessToken);
+        await AsyncStorage.setItem('refreshToken', refreshToken);
+        
+        // Get user ID from Supabase auth_user table
+        const { data: authUser, error: authError } = await supabase
+            .from('auth_user')
+            .select('id')
+            .eq('username', username)
+            .single();
+
+        if (authError || !authUser) {
+            console.error('❌ AuthContext - Login - Error getting user ID:', authError);
+            throw new Error('Failed to get user ID from database');
+        }
+
+        const userData = {
+            id: authUser.id,
+            username: username,
+            email: response.data.user?.email || '',
+        };
+        
+        console.log('🔍 AuthContext - Login - Storing user data:', userData);
+        await AsyncStorage.setItem('userData', JSON.stringify(userData));
+        
+        // Update state
+        setTokens({ accessToken, refreshToken });
+        setUser(userData);
+        setIsAuthenticated(true);
+        
+        console.log('✅ AuthContext - Login - Completed successfully');
+        
     } catch (error: any) {
-      console.error(' Login error:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
-      await clearAuthData();
-      setIsAuthenticated(false);
-      setTokens(null);
-      setUser(null);
-      throw error;
+        console.error('❌ AuthContext - Login - Error:', {
+            message: error.message,
+            response: error.response?.data,
+            status: error.response?.status
+        });
+        await clearAuthData();
+        setIsAuthenticated(false);
+        setTokens(null);
+        setUser(null);
+        throw error;
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
   };
 
