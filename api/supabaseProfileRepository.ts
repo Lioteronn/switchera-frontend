@@ -15,7 +15,49 @@ export interface ProfileUpdateData {
     voxel_space_id?: string;
 }
 
-export class SupabaseProfileRepository {    /**
+export class SupabaseProfileRepository {
+    /**
+     * Create a default profile for a user
+     */
+    private async createDefaultProfile(userId: number): Promise<ProfileWithUser | null> {
+        console.log('🔧 Creating default profile for user:', userId);
+        
+        const defaultProfile = {
+            user_id: userId,
+            bio: '',
+            location: '',
+            interests: [],
+            speciality: [],
+            profile_picture: null,
+            rating: 0
+        };
+
+        const { data, error } = await supabase
+            .from('users_profile')
+            .insert(defaultProfile)
+            .select(`
+                *,
+                auth_user (
+                    id,
+                    username,
+                    first_name,
+                    last_name,
+                    email,
+                    is_active
+                )
+            `)
+            .single();
+
+        if (error) {
+            console.error('❌ Error creating default profile:', error);
+            return null;
+        }
+
+        console.log('✅ Default profile created successfully');
+        return data;
+    }
+
+    /**
      * Get profile by user ID with user information
      * Uses a smart fallback strategy to handle authentication issues
      */
@@ -33,24 +75,34 @@ export class SupabaseProfileRepository {    /**
         // For now, use the regular client due to JWT signature issues
         // TODO: Fix JWT validation in Supabase or implement proper RLS policies
         const client = supabase;
-        console.log('🔧 Using regular client (RLS should be disabled for testing)');        const { data, error } = await client
+        console.log('🔧 Using regular client (RLS should be disabled for testing)');
+        
+        const { data, error } = await client
             .from('users_profile')
             .select(`
-        *,
-        auth_user (
-          id,
-          username,
-          first_name,
-          last_name,
-          email,
-          is_active
-        )
-      `)
+                *,
+                auth_user (
+                    id,
+                    username,
+                    first_name,
+                    last_name,
+                    email,
+                    is_active
+                )
+            `)
             .eq('user_id', userId)
-            .single();if (error) {
+            .single();
+
+        if (error) {
             if (error.code === 'PGRST301' || error.message?.includes('JWSError')) {
                 console.error('❌ RLS blocking request - you need to disable RLS temporarily:', error);
                 throw new Error(`Database access denied. Please disable RLS on users_profile table: ${error.message}`);
+            }
+            
+            // If profile doesn't exist, create a default one
+            if (error.code === 'PGRST116') {
+                console.log('⚠️ Profile not found, creating default profile');
+                return this.createDefaultProfile(userId);
             }
             
             console.error('❌ Error fetching profile:', error);
@@ -63,19 +115,6 @@ export class SupabaseProfileRepository {    /**
             throw new Error(`Failed to fetch profile: ${error.message}`);
         }
 
-        if (data) {
-            // Fetch services count separately and add to profile data
-            const servicesCount = await this.getServicesCount(userId);
-            const profileWithServices = {
-                ...data,
-                servicesCount
-            };
-            
-            console.log('✅ Profile fetched successfully with services count:', servicesCount);
-            return profileWithServices;
-        }
-
-        console.log('✅ Profile fetched successfully:', data ? 'Profile found' : 'No profile');
         return data;
     }
 
@@ -103,7 +142,9 @@ export class SupabaseProfileRepository {    /**
         }
 
         return this.getProfileByUserId(authUser.id);
-    }    /**
+    }
+
+    /**
      * Update profile - will create if doesn't exist
      * Uses a smart fallback strategy to handle authentication issues
      */
@@ -157,7 +198,7 @@ export class SupabaseProfileRepository {    /**
                     user_id: userId,
                     ...updateData
                 })
-                .select()
+                .select('*')
                 .single();
 
             if (error) {
@@ -178,35 +219,35 @@ export class SupabaseProfileRepository {    /**
 
             console.log('✅ Profile created successfully:', data);
             return data;
-        } else {
-            console.log('🔄 Updating existing profile');
-            // Update existing profile
-            const { data, error } = await client
-                .from('users_profile')
-                .update(updateData)
-                .eq('user_id', userId)
-                .select()
-                .single();
-
-            if (error) {
-                if (error.code === 'PGRST301' || error.message?.includes('JWSError')) {
-                    console.error('❌ RLS blocking update - you need to disable RLS temporarily:', error);
-                    throw new Error(`Database access denied. Please disable RLS on users_profile table: ${error.message}`);
-                }
-                
-                console.error('❌ Error updating profile:', error);
-                console.error('📋 Error details:', {
-                    code: error.code,
-                    message: error.message,
-                    details: error.details,
-                    hint: error.hint
-                });
-                throw new Error(`Failed to update profile: ${error.message}`);
-            }
-
-            console.log('✅ Profile updated successfully:', data);
-            return data;
         }
+
+        console.log('🔄 Updating existing profile');
+        // Update existing profile
+        const { data, error } = await client
+            .from('users_profile')
+            .update(updateData)
+            .eq('user_id', userId)
+            .select('*')
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST301' || error.message?.includes('JWSError')) {
+                console.error('❌ RLS blocking update - you need to disable RLS temporarily:', error);
+                throw new Error(`Database access denied. Please disable RLS on users_profile table: ${error.message}`);
+            }
+            
+            console.error('❌ Error updating profile:', error);
+            console.error('📋 Error details:', {
+                code: error.code,
+                message: error.message,
+                details: error.details,
+                hint: error.hint
+            });
+            throw new Error(`Failed to update profile: ${error.message}`);
+        }
+
+        console.log('✅ Profile updated successfully:', data);
+        return data;
     }
 
     /**
@@ -228,20 +269,23 @@ export class SupabaseProfileRepository {    /**
         }
 
         return data;
-    }    /**
+    }
+
+    /**
      * Upload profile picture to Supabase Storage
      */
     async uploadProfilePicture(userId: number, file: File | Blob, fileName: string): Promise<string> {
         console.log('📤 Uploading profile picture for user_id:', userId);
         
-        // Get authenticated Supabase client
-        const authClient = await createAuthenticatedSupabaseClient();
-        console.log('✅ Using authenticated Supabase client for file upload');
+        // Use regular client since we're not using Supabase auth
+        const client = supabase;
+        console.log('✅ Using regular client (RLS should be disabled for testing)');
 
         const fileExt = fileName.split('.').pop();
         const filePath = `profiles/${userId}/avatar.${fileExt}`;
 
-        const { error: uploadError } = await authClient.storage
+        // Upload the file
+        const { error: uploadError } = await client.storage
             .from('profile-pictures')
             .upload(filePath, file, {
                 upsert: true
@@ -257,12 +301,24 @@ export class SupabaseProfileRepository {    /**
             throw new Error(`Failed to upload profile picture: ${uploadError.message}`);
         }
 
-        // Get public URL (this doesn't need auth)
-        const { data } = supabase.storage
+        // Get public URL
+        const { data } = client.storage
             .from('profile-pictures')
             .getPublicUrl(filePath);
 
         console.log('✅ Profile picture uploaded successfully:', data.publicUrl);
+
+        // Update the user's profile with the new picture URL
+        const { error: updateError } = await client
+            .from('users_profile')
+            .update({ profile_picture: data.publicUrl })
+            .eq('user_id', userId);
+
+        if (updateError) {
+            console.error('❌ Error updating profile with picture URL:', updateError);
+            throw new Error(`Failed to update profile with picture URL: ${updateError.message}`);
+        }
+
         return data.publicUrl;
     }
 
@@ -449,7 +505,9 @@ export class SupabaseProfileRepository {    /**
 
         console.log('✅ Services count fetched:', count);
         return count || 0;
-    }    /**
+    }
+
+    /**
      * Book a service (insert a booking row)
      */
     async bookService(serviceId: string) {
@@ -488,7 +546,9 @@ export class SupabaseProfileRepository {    /**
         
         console.log('✅ Booking created successfully:', data);
         return data;
-    }    /**
+    }
+
+    /**
      * Propose an exchange (insert an exchange proposal row)
      * Note: service_exchanges table doesn't exist yet, so this is disabled for now
      */

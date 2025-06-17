@@ -77,20 +77,25 @@ const PostScreen = () => {
       if (newPostData.imageUri) {
         try {
           const imageUploadResult = await postRepository.uploadImage(newPostData.imageUri, newPostData.title);
-          finalImageUrl = imageUploadResult.url;
-          console.log('Image uploaded successfully:', finalImageUrl);
+          console.log('Image uploaded successfully:', imageUploadResult);
+          finalImageUrl = imageUploadResult;
         } catch (imageError) {
           console.error('Failed to upload image:', imageError);
           Alert.alert('Warning', 'Failed to upload image, but proceeding with post creation.');
         }
       }
 
+      // Get the user ID, ensuring it's a number
+      const userId = user?.id || (await getUserAuthStatus()).userId;
+      if (!userId) {
+        throw new Error('User ID not found');
+      }
+
       const createdPost = await postRepository.createPost({
         title: newPostData.title,
         content: newPostData.content,
-        image: finalImageUrl || newPostData.image || null,
-        userId: user?.id || (await getUserAuthStatus()).userId, // Ensure userId is included
-        imageUri: null, // We don't need to store the local URI
+        imageUrl: finalImageUrl || newPostData.image || undefined,
+        userId: userId
       });
 
       console.log('Post created successfully in DB:', createdPost);

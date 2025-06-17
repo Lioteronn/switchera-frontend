@@ -11,6 +11,7 @@ import {
 
 
 
+
     PostComment,
     postRepository
 } from '../../api/postRepository';
@@ -330,7 +331,7 @@ const PostCard: React.FC<PostCardProps> = ({
             <PostContent title={title} categories={categories} description={description} />
             {photos?.length > 0 && (
             <View style={styles.photocontainer}>
-                <PostMedia photos={photos} />
+                <PostMedia imageUrl={photos[0]} />
             </View>
             )}
             <PostActions 

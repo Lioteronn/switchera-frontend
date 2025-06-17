@@ -1,3 +1,5 @@
+import * as FileSystem from 'expo-file-system';
+import { Platform } from 'react-native';
 import { getUserAuthStatus, supabase } from '../utils/supabase';
 
 export interface Post {
@@ -85,49 +87,53 @@ export const getPostLikeCount = async (postId: string): Promise<number> => {
 
 export const postRepository = {
   // --- Post CRUD ---
-  async createPost(postData: { title: string; content: string; image?: string | null; imageUri?: string | null }): Promise<Post> {
-    const authStatus = await getUserAuthStatus();
-    if (!authStatus.isAuthenticated || !authStatus.userId) {
-      throw new Error('User not authenticated or user ID not found');
-    }
+  async createPost(postData: {
+    title: string;
+    content: string;
+    imageUrl?: string;
+    userId: number;
+  }): Promise<Post> {
+    try {
+      console.log('📝 Creating post with data:', {
+        title: postData.title,
+        contentLength: postData.content.length,
+        hasImage: !!postData.imageUrl,
+        userId: postData.userId
+      });
 
-    console.log('🔍 Creating post with data:', { ...postData, imageUri: postData.imageUri ? 'present' : 'null' });
+      // Get the Supabase URL from the client
+      const supabaseUrl = supabase.storage.from('post-images').getPublicUrl('').data.publicUrl.split('/storage')[0];
 
-    let imageUrl = postData.image;
+      const { data, error } = await supabase
+        .from('users_post')
+        .insert([
+          {
+            title: postData.title,
+            content: postData.content,
+            image: postData.imageUrl ? `${supabaseUrl}/storage/v1/object/public/post-images/${postData.imageUrl}` : null,
+            author_id: postData.userId,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+        ])
+        .select('*, author:auth_user(username, users_profile(profile_picture))')
+        .single();
 
-    // If we have a local image URI, upload it first
-    if (postData.imageUri && !postData.image) {
-      try {
-        console.log('🔍 Uploading image before creating post...');
-        imageUrl = await this.uploadImage(postData.imageUri, 'post-image');
-        console.log('✅ Image upload successful, URL:', imageUrl);
-      } catch (uploadError) {
-        console.error('❌ Image upload failed:', uploadError);
-        // Continue without image rather than failing the entire post creation
-        imageUrl = null;
+      if (error) {
+        console.error('❌ Error creating post:', error);
+        throw error;
       }
-    }
 
-    const { data, error } = await supabase
-      .from('users_post')
-      .insert([{ 
-        title: postData.title, 
-        content: postData.content, 
-        image: imageUrl, // Use the uploaded URL or null
-        author_id: authStatus.userId // author_id is added here
-      }])
-      .select('*, author:auth_user(username, users_profile(profile_picture))')
-      .single();
-
-    if (error) {
-      console.error('Error creating post:', error);
-      throw new Error(`Failed to create post: ${error.message}`);
-    }
-    return {
+      console.log('✅ Post created successfully:', data);
+      return {
         ...data,
-        author_username: data.author?.username,
-        author_profile_picture: data.author?.users_profile[0]?.profile_picture,
-    } as Post;
+        author_username: data.author?.username || 'Unknown User',
+        author_profile_picture: data.author?.users_profile?.[0]?.profile_picture || null,
+      } as Post;
+    } catch (error) {
+      console.error('❌ Exception in createPost:', error);
+      throw error;
+    }
   },
 
   async getAllPosts(): Promise<Post[]> {
@@ -151,10 +157,10 @@ export const postRepository = {
     
     return data.map(post => ({
         ...post,
-        author_username: post.author?.username,
-        author_profile_picture: post.author?.users_profile[0]?.profile_picture,
-        likes_count: post.likes_count[0]?.count || 0,
-        comments_count: post.comments_count[0]?.count || 0,
+        author_username: post.author?.username || 'Unknown User',
+        author_profile_picture: post.author?.users_profile?.[0]?.profile_picture || null,
+        likes_count: post.likes_count?.[0]?.count || 0,
+        comments_count: post.comments_count?.[0]?.count || 0,
         is_liked_by_user: authStatus.isAuthenticated && authStatus.userId && Array.isArray(post.is_liked_by_user) ? post.is_liked_by_user.some((like: UserPostLike) => like.user_id === authStatus.userId) : false,
     })) as Post[];
   },
@@ -200,10 +206,10 @@ export const postRepository = {
     
     return data.map(post => ({
         ...post,
-        author_username: post.author?.username,
-        author_profile_picture: post.author?.users_profile[0]?.profile_picture,
-        likes_count: post.likes_count[0]?.count || 0,
-        comments_count: post.comments_count[0]?.count || 0,
+        author_username: post.author?.username || 'Unknown User',
+        author_profile_picture: post.author?.users_profile?.[0]?.profile_picture || null,
+        likes_count: post.likes_count?.[0]?.count || 0,
+        comments_count: post.comments_count?.[0]?.count || 0,
         is_liked_by_user: authStatus.isAuthenticated && authStatus.userId && Array.isArray(post.is_liked_by_user) ? post.is_liked_by_user.some((like: UserPostLike) => like.user_id === authStatus.userId) : false,
     })) as Post[];
   },
@@ -231,10 +237,10 @@ export const postRepository = {
 
     return {
         ...data,
-        author_username: data.author?.username,
-        author_profile_picture: data.author?.users_profile[0]?.profile_picture,
-        likes_count: data.likes_count[0]?.count || 0,
-        comments_count: data.comments_count[0]?.count || 0,
+        author_username: data.author?.username || 'Unknown User',
+        author_profile_picture: data.author?.users_profile?.[0]?.profile_picture || null,
+        likes_count: data.likes_count?.[0]?.count || 0,
+        comments_count: data.comments_count?.[0]?.count || 0,
         is_liked_by_user: authStatus.isAuthenticated && authStatus.userId && Array.isArray(data.is_liked_by_user) ? data.is_liked_by_user.some((like: UserPostLike) => like.user_id === authStatus.userId) : false,
     } as Post;
   },
@@ -263,10 +269,10 @@ export const postRepository = {
 
     return data.map(post => ({
         ...post,
-        author_username: post.author?.username,
-        author_profile_picture: post.author?.users_profile[0]?.profile_picture,
-        likes_count: post.likes_count[0]?.count || 0,
-        comments_count: post.comments_count[0]?.count || 0,
+        author_username: post.author?.username || 'Unknown User',
+        author_profile_picture: post.author?.users_profile?.[0]?.profile_picture || null,
+        likes_count: post.likes_count?.[0]?.count || 0,
+        comments_count: post.comments_count?.[0]?.count || 0,
         is_liked_by_user: authStatus.isAuthenticated && authStatus.userId && Array.isArray(post.is_liked_by_user) ? post.is_liked_by_user.some((like: UserPostLike) => like.user_id === authStatus.userId) : false,
     })) as Post[];
   },
@@ -525,42 +531,143 @@ export const postRepository = {
       throw new Error('User not authenticated');
     }
 
-    console.log('🔍 Uploading image:', { imageUri, fileName });
+    console.log('🔍 Starting image upload:', { 
+      imageUri: imageUri.substring(0, 50) + '...', // Log only the start of the URI
+      fileName, 
+      platform: Platform.OS,
+      userId: authStatus.userId 
+    });
 
     try {
-      // Convert URI to Blob for upload
-      const response = await fetch(imageUri);
-      const blob = await response.blob();
-      
-      // Generate unique file name with user ID prefix
-      const fileExtension = imageUri.split('.').pop() || 'jpg';
-      const uniqueFileName = `posts/${authStatus.userId}/${Date.now()}-${fileName}.${fileExtension}`;
+      let blob: Blob;
+      let fileExtension = 'jpg'; // Default extension
 
-      console.log('🔍 Uploading as:', uniqueFileName);      // Upload to Supabase Storage
+      if (Platform.OS === 'web') {
+        console.log('🌐 Using web platform image handling');
+        try {
+          // For web, the imageUri might be a base64 string or a URL
+          if (imageUri.startsWith('data:')) {
+            // Extract mime type and base64 data
+            const matches = imageUri.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+            if (!matches || matches.length !== 3) {
+              throw new Error('Invalid base64 image data');
+            }
+            
+            const mimeType = matches[1];
+            const base64Data = matches[2];
+            
+            // Set file extension based on mime type
+            if (mimeType === 'image/png') fileExtension = 'png';
+            else if (mimeType === 'image/jpeg') fileExtension = 'jpg';
+            else if (mimeType === 'image/gif') fileExtension = 'gif';
+            else if (mimeType === 'image/webp') fileExtension = 'webp';
+            
+            // Convert base64 to blob
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            blob = new Blob([byteArray], { type: mimeType });
+            console.log('✅ Successfully converted base64 to blob');
+          } else {
+            // Handle regular URL
+            const response = await fetch(imageUri);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch image: ${response.statusText}`);
+            }
+            blob = await response.blob();
+            // Get file extension from content type
+            const contentType = response.headers.get('content-type');
+            if (contentType) {
+              if (contentType.includes('png')) fileExtension = 'png';
+              else if (contentType.includes('jpeg')) fileExtension = 'jpg';
+              else if (contentType.includes('gif')) fileExtension = 'gif';
+              else if (contentType.includes('webp')) fileExtension = 'webp';
+            }
+            console.log('✅ Successfully fetched and converted image to blob');
+          }
+        } catch (error: any) {
+          console.error('❌ Web platform image handling failed:', error);
+          throw new Error(`Web image processing failed: ${error.message}`);
+        }
+      } else {
+        console.log('📱 Using native platform image handling');
+        try {
+          const fileInfo = await FileSystem.getInfoAsync(imageUri);
+          console.log('📁 File info:', fileInfo);
+          
+          if (!fileInfo.exists) {
+            throw new Error('Image file does not exist');
+          }
+
+          // Read the file as base64
+          const base64 = await FileSystem.readAsStringAsync(imageUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          console.log('✅ Successfully read file as base64');
+
+          // Convert base64 to blob
+          const byteCharacters = atob(base64);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          blob = new Blob([byteArray], { type: 'image/jpeg' });
+          console.log('✅ Successfully converted base64 to blob');
+        } catch (error: any) {
+          console.error('❌ Native platform image handling failed:', error);
+          throw new Error(`Native image processing failed: ${error.message}`);
+        }
+      }
+
+      if (!blob || blob.size === 0) {
+        throw new Error('Invalid image data - blob is empty or undefined');
+      }
+
+      console.log('📦 Blob details:', {
+        size: blob.size,
+        type: blob.type
+      });
+
+      // Generate unique file name with user ID prefix
+      const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+      const uniqueFileName = `posts/${authStatus.userId}/${Date.now()}-${sanitizedFileName}.${fileExtension}`;
+
+      console.log('📤 Uploading to Supabase Storage:', uniqueFileName);
+
+      // Upload to Supabase Storage using regular client (RLS disabled)
       const { data, error } = await supabase.storage
-        .from('post-images') // Bucket name - needs to be created in Supabase
+        .from('post-images')
         .upload(uniqueFileName, blob, {
           contentType: `image/${fileExtension}`,
           cacheControl: '3600',
-          upsert: false
+          upsert: true
         });
 
       if (error) {
-        console.error('❌ Error uploading image:', error);
+        console.error('❌ Supabase storage upload error:', error);
         if (error.message.includes('Bucket not found')) {
           throw new Error('Image upload is not yet configured. Please create the "post-images" bucket in your Supabase Storage dashboard.');
         }
         throw error;
       }
 
-      console.log('✅ Image uploaded successfully:', data);
+      console.log('✅ Image uploaded successfully to Supabase:', data);
 
       // Get public URL
       const { data: urlData } = supabase.storage
         .from('post-images')
         .getPublicUrl(uniqueFileName);
 
-      const publicUrl = urlData.publicUrl;
+      if (!urlData?.publicUrl) {
+        throw new Error('Failed to generate public URL for uploaded image');
+      }
+
+      // Store only the path part of the URL to keep it under 100 characters
+      const publicUrl = uniqueFileName;
       console.log('✅ Public URL generated:', publicUrl);
       
       return publicUrl;

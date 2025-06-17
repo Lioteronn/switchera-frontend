@@ -1,9 +1,21 @@
-import { ProfileWithUser } from '@/api/supabaseProfileRepository';
+import { ProfileWithUser, supabaseProfileRepository } from '@/api/supabaseProfileRepository';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/utils/supabase';
 import * as ImagePicker from 'expo-image-picker';
 import { Briefcase, Calendar, Camera, Edit2, Heart, MapPin } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import ProfileEditModal from './ProfileEditModal';
+
+interface UserMetadata {
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+}
+
+interface ExtendedUser {
+  user_metadata: UserMetadata;
+}
 
 interface ProfileInfoProps {
   userId: string;
@@ -20,10 +32,117 @@ export default function ProfileInfo({
 }: ProfileInfoProps) {
   const [uploading, setUploading] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [supabaseUserId, setSupabaseUserId] = useState<number | null>(null);
+  const [stats, setStats] = useState({
+    followers: 0,
+    following: 0,
+    posts: 0,
+    services: 0
+  });
+  const { user } = useAuth();
   const isOwnProfile = userId === currentUserId;
+
+  // Get user ID from Supabase using username from auth context
+  useEffect(() => {
+    const getUserIdFromUsername = async () => {
+      try {
+        // First try to get the user ID from the profile
+        if (profile?.user_id) {
+          console.log('Found user ID in profile:', profile.user_id);
+          setSupabaseUserId(Number(profile.user_id));
+          return;
+        }
+
+        // If not in profile, try to get from auth_user table
+        const { data: authUser, error } = await supabase
+          .from('auth_user')
+          .select('id')
+          .eq('username', profile?.username)
+          .single();
+
+        if (error) {
+          console.error('Error fetching user ID:', error);
+          return;
+        }
+
+        if (authUser?.id) {
+          console.log('Found user ID from auth_user:', authUser.id);
+          setSupabaseUserId(authUser.id);
+        } else {
+          console.error('No user ID found for username:', profile?.username);
+        }
+      } catch (err) {
+        console.error('Error in getUserIdFromUsername:', err);
+      }
+    };
+
+    if (profile) {
+      getUserIdFromUsername();
+    }
+  }, [profile]);
+
+  // Fetch profile stats
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!supabaseUserId) return;
+
+      try {
+        // Fetch followers count
+        const { count: followersCount } = await supabase
+          .from('users_userfollow')
+          .select('*', { count: 'exact', head: true })
+          .eq('following_id', supabaseUserId);
+
+        // Fetch following count
+        const { count: followingCount } = await supabase
+          .from('users_userfollow')
+          .select('*', { count: 'exact', head: true })
+          .eq('follower_id', supabaseUserId);
+
+        // Fetch posts count
+        const { count: postsCount } = await supabase
+          .from('users_post')
+          .select('*', { count: 'exact', head: true })
+          .eq('author_id', supabaseUserId);
+
+        // Fetch services count
+        const { count: servicesCount } = await supabase
+          .from('users_service')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', supabaseUserId);
+
+        setStats({
+          followers: followersCount || 0,
+          following: followingCount || 0,
+          posts: postsCount || 0,
+          services: servicesCount || 0
+        });
+
+        console.log('Profile stats fetched:', {
+          followers: followersCount,
+          following: followingCount,
+          posts: postsCount,
+          services: servicesCount
+        });
+      } catch (error) {
+        console.error('Error fetching profile stats:', error);
+      }
+    };
+
+    fetchStats();
+  }, [supabaseUserId]);
 
   const handleImagePick = async () => {
     if (!isOwnProfile) return;
+
+    if (!supabaseUserId) {
+      Alert.alert(
+        'Error',
+        'Could not determine user ID. Please try refreshing the page.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
 
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -42,58 +161,54 @@ export default function ProfileInfo({
       if (!result.canceled) {
         setUploading(true);
         try {
-          const formData = new FormData();
-          formData.append('image', {
-            uri: result.assets[0].uri,
-            type: 'image/jpeg',
-            name: 'profile-image.jpg',
-          } as any); // 'as any' is needed for React Native FormData compatibility
+          // Convert URI to blob for upload
+          const response = await fetch(result.assets[0].uri);
+          const blob = await response.blob();
 
-          await onProfileUpdate({ image: formData });
+          const fileName = `profile-${Date.now()}.jpg`;
+          const imageUrl = await supabaseProfileRepository.uploadProfilePicture(
+            supabaseUserId,
+            blob,
+            fileName
+          );
+
+          // Update profile with new picture URL
+          await onProfileUpdate({ profile_picture: imageUrl });
         } catch (uploadError) {
-          alert('Failed to upload image');
           console.error('Upload error:', uploadError);
+          Alert.alert(
+            'Error',
+            'Failed to upload image. Please try again.',
+            [{ text: 'OK' }]
+          );
         } finally {
           setUploading(false);
         }
       }
     } catch (pickError) {
       console.error('Error picking image:', pickError);
+      Alert.alert(
+        'Error',
+        'Failed to pick image. Please try again.',
+        [{ text: 'OK' }]
+      );
     }
   };
+
   const handleProfileUpdated = async (updatedProfile: ProfileWithUser) => {
     await onProfileUpdate(updatedProfile);
   };
+
   // Debug logging
   console.log('ProfileInfo Debug:', { 
     userId, 
     currentUserId, 
-    userIdParsed: parseInt(userId),
+    supabaseUserId,
     profile,
     profileUserId: profile?.user_id,
-    profileId: profile?.id
+    profileId: profile?.id,
+    profileUsername: profile?.username
   });
-
-  // Try multiple sources for user ID
-  const extractUserId = () => {
-    // First try the passed userId
-    if (userId && !isNaN(parseInt(userId))) {
-      return parseInt(userId);
-    }
-    
-    // Then try from profile data
-    if (profile?.user_id && !isNaN(parseInt(profile.user_id))) {
-      return parseInt(profile.user_id);
-    }
-    
-    // Then try the profile id itself
-    if (profile?.id && !isNaN(parseInt(profile.id))) {
-      return parseInt(profile.id);
-    }
-    
-    return null;
-  };
-  const numericUserId = extractUserId();
 
   // Helper function to get full name
   const getFullName = () => {
@@ -124,6 +239,28 @@ export default function ProfileInfo({
       return profile.birth_date;
     }
   };
+
+  // Stats Overview
+  const renderStats = () => (
+    <View style={styles.statsContainer}>
+      <View style={styles.statItem}>
+        <Text style={styles.statValue}>{stats.followers}</Text>
+        <Text style={styles.statLabel}>Followers</Text>
+      </View>
+      <View style={styles.statItem}>
+        <Text style={styles.statValue}>{stats.following}</Text>
+        <Text style={styles.statLabel}>Following</Text>
+      </View>
+      <View style={styles.statItem}>
+        <Text style={styles.statValue}>{stats.posts}</Text>
+        <Text style={styles.statLabel}>Posts</Text>
+      </View>
+      <View style={styles.statItem}>
+        <Text style={styles.statValue}>{stats.services}</Text>
+        <Text style={styles.statLabel}>Services</Text>
+      </View>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -170,14 +307,17 @@ export default function ProfileInfo({
           <TouchableOpacity
             style={styles.editButton}
             onPress={() => {
-              console.log('Edit button clicked, numericUserId:', numericUserId);
-              if (numericUserId) {
-                setEditModalVisible(true);
-              } else {
-                // Show modal anyway with a warning, let the modal handle the error
-                console.warn('No valid user ID found, but showing modal anyway');
-                setEditModalVisible(true);
+              const userIdToUse = supabaseUserId || profile?.user_id;
+              if (!userIdToUse) {
+                Alert.alert(
+                  'Error',
+                  'Could not determine user ID. Please try refreshing the page.',
+                  [{ text: 'OK' }]
+                );
+                return;
               }
+              console.log('Edit button clicked, userId:', userIdToUse);
+              setEditModalVisible(true);
             }}
           >
             <Edit2 size={20} color="#4b5563" />
@@ -221,29 +361,14 @@ export default function ProfileInfo({
       </View>
 
       {/* Stats Overview */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{profile?.followers || '0'}</Text>
-          <Text style={styles.statLabel}>Followers</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{profile?.following || '0'}</Text>
-          <Text style={styles.statLabel}>Following</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{profile?.servicesCount || '0'}</Text>
-          <Text style={styles.statLabel}>Services</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{profile?.posts?.length || '0'}</Text>
-          <Text style={styles.statLabel}>Posts</Text>
-        </View>
-      </View>{/* Profile Edit Modal */}
+      {renderStats()}
+
+      {/* Profile Edit Modal */}
       <ProfileEditModal
         visible={editModalVisible}
         onClose={() => setEditModalVisible(false)}
         profile={profile}
-        userId={numericUserId || 0}
+        userId={supabaseUserId || Number(profile?.user_id) || 0}
         onProfileUpdated={handleProfileUpdated}
       />
     </View>
@@ -331,10 +456,11 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 24,
-    paddingTop: 16,
+    paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderBottomWidth: 1,
+    borderColor: '#e0e0e0',
+    backgroundColor: '#fff',
   },
   statItem: {
     alignItems: 'center',
@@ -342,11 +468,11 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#000',
   },
   statLabel: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#666',
     marginTop: 4,
   },
 })
